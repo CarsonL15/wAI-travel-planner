@@ -91,7 +91,7 @@ const getSeasonalContext = (destination: string, month: number): ContextResponse
   };
 
   const normalizedDest = destination.toLowerCase();
-  const seasonData = seasons[tokyo as keyof typeof seasons] || seasons.paris;
+  const seasonData = seasons[normalizedDest as keyof typeof seasons] || seasons.paris;
   
   if (month >= 3 && month <= 5) return seasonData.spring;
   if (month >= 6 && month <= 8) return seasonData.summer;
