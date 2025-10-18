@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Itinerary Schema for Bedrock AI Generation",
+  "description": "Strict JSON schema for AI-generated travel itineraries",
+  "required": ["days", "packingList", "rationalePerDay"],
+  "properties": {
+    "days": {
+      "type": "array",
+      "description": "Array of daily itinerary plans",
+      "items": {
+        "type": "object",
+        "required": ["date", "blocks"],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date in YYYY-MM-DD format"
+          },
+          "blocks": {
+            "type": "array",
+            "description": "Activities for this day",
+            "items": {
+              "type": "object",
+              "required": ["start", "end", "title", "category", "costBand", "notes", "address", "lat", "lon"],
+              "properties": {
+                "start": {
+                  "type": "string",
+                  "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+                  "description": "Start time in HH:MM format"
+                },
+                "end": {
+                  "type": "string",
+                  "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+                  "description": "End time in HH:MM format"
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Activity title"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": ["food", "museum", "outdoors", "shopping", "other"],
+                  "description": "Activity category"
+                },
+                "costBand": {
+                  "type": "string",
+                  "enum": ["low", "med", "high"],
+                  "description": "Cost level indicator"
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "Additional notes about the activity"
+                },
+                "address": {
+                  "type": "string",
+                  "description": "Physical address"
+                },
+                "lat": {
+                  "type": "number",
+                  "description": "Latitude coordinate"
+                },
+                "lon": {
+                  "type": "number",
+                  "description": "Longitude coordinate"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "packingList": {
+      "type": "array",
+      "description": "List of items to pack for the trip",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rationalePerDay": {
+      "type": "array",
+      "description": "Explanation for each day's activities",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

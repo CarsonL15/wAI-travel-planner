@@ -1,0 +1,105 @@
+# GraphQL Schema for wAI Travel Planner
+
+type Profile {
+  id: ID!
+  userId: String!
+  interests: [String!]!
+  travelStyle: String!
+  budget: String!
+  constraints: [String!]!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+type Itinerary {
+  id: ID!
+  userId: String!
+  destination: String!
+  startDate: AWSDate!
+  endDate: AWSDate!
+  days: [Day!]!
+  packingList: [String!]!
+  rationalePerDay: [String!]!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+type Day {
+  date: AWSDate!
+  blocks: [Block!]!
+}
+
+type Block {
+  start: String!
+  end: String!
+  title: String!
+  category: ActivityCategory!
+  costBand: CostBand!
+  notes: String!
+  address: String!
+  lat: Float!
+  lon: Float!
+}
+
+enum ActivityCategory {
+  food
+  museum
+  outdoors
+  shopping
+  other
+}
+
+enum CostBand {
+  low
+  med
+  high
+}
+
+type Query {
+  getProfile(userId: ID!): Profile
+  listItineraries(userId: ID!): [Itinerary!]!
+  getItinerary(id: ID!): Itinerary
+}
+
+type Mutation {
+  upsertProfile(input: ProfileInput!): Profile!
+  generateItinerary(input: GenerateItineraryInput!): Itinerary!
+  adjustItinerary(input: AdjustItineraryInput!): Itinerary!
+  rateActivity(input: RateActivityInput!): Boolean!
+}
+
+type Subscription {
+  onItineraryUpdated(itineraryId: ID!): Itinerary
+    @aws_subscribe(mutations: ["generateItinerary", "adjustItinerary"])
+}
+
+input ProfileInput {
+  interests: [String!]!
+  travelStyle: String!
+  budget: String!
+  constraints: [String!]!
+}
+
+input GenerateItineraryInput {
+  destination: String!
+  startDate: AWSDate!
+  endDate: AWSDate!
+  contextHints: String
+}
+
+input AdjustItineraryInput {
+  itineraryId: ID!
+  adjustments: [String!]!
+}
+
+input RateActivityInput {
+  itineraryId: ID!
+  dayDate: AWSDate!
+  blockIndex: Int!
+  rating: ActivityRating!
+}
+
+enum ActivityRating {
+  up
+  down
+}
