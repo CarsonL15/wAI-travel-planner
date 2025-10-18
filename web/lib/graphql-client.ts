@@ -1,23 +1,41 @@
-import AWSAppSyncClient, { AUTH_TYPE } from 'aws-appsync';
-import { Auth } from 'aws-amplify';
+import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client';
+import { setContext } from '@apollo/client/link/context';
+// import { Auth } from 'aws-amplify';
 
 // TODO: Replace with actual AppSync configuration
-const client = new AWSAppSyncClient({
-  url: process.env.APPSYNC_GRAPHQL_ENDPOINT || 'your_graphql_endpoint',
-  region: process.env.AMPLIFY_REGION || 'us-east-1',
-  auth: {
-    type: AUTH_TYPE.AMAZON_COGNITO_USER_POOLS,
-    jwtToken: async () => {
-      try {
-        const session = await Auth.currentSession();
-        return session.getIdToken().getJwtToken();
-      } catch (error) {
-        console.error('Error getting JWT token:', error);
-        return '';
-      }
+const httpLink = createHttpLink({
+  uri: process.env.APPSYNC_GRAPHQL_ENDPOINT || 'your_graphql_endpoint',
+});
+
+// TODO: Implement auth when Amplify is configured
+const authLink = setContext(async (_, { headers }) => {
+  // try {
+  //   const session = await Auth.currentSession();
+  //   const token = session.getIdToken().getJwtToken();
+  //   return {
+  //     headers: {
+  //       ...headers,
+  //       authorization: token ? `Bearer ${token}` : '',
+  //     },
+  //   };
+  // } catch (error) {
+  //   console.error('Error getting JWT token:', error);
+  //   return {
+  //     headers: {
+  //       ...headers,
+  //     },
+  //   };
+  // }
+  return {
+    headers: {
+      ...headers,
     },
-  },
-  disableOffline: false,
+  };
+});
+
+const client = new ApolloClient({
+  link: authLink.concat(httpLink),
+  cache: new InMemoryCache(),
 });
 
 export default client;
