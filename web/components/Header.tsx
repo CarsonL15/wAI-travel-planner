@@ -17,7 +17,16 @@ export default function Header() {
   });
 
   return (
-    <header style={{ padding: '1rem 2rem', borderBottom: '1px solid #eee', marginBottom: '1.5rem' }}>
+    <header style={{ 
+        padding: '1rem 2rem', 
+        borderBottom: '1px solid #eee', 
+        backgroundColor: 'white',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100
+      }}>
       <div style={{ maxWidth: 1000, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
           <strong style={{ fontSize: '1.1rem' }}>wAI Travel Planner</strong>

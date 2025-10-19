@@ -53,9 +53,21 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // Initialize from localStorage if available, otherwise default to true
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('sidebarOpen');
+      return stored ? stored === 'true' : true;
+    }
+    return true;
+  });
+
   const clientUser = isMounted ? user : null;
-  useEffect(() => { setIsMounted(true); }, []);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  useEffect(() => { 
+    setIsMounted(true); 
+  }, []);
+
   useEffect(() => {
     // automatically open sidebar when a profile becomes available
     if (hasProfile) setSidebarOpen(true);
@@ -86,8 +98,8 @@ export default function Home() {
     e.preventDefault();
     const input = searchInputRef.current as HTMLInputElement | null;
     if (input?.value) {
-      // TODO: Implement destination search and navigation
-      console.log('Searching for:', input.value);
+      // Navigate to trip preferences with the destination as a query parameter
+      router.push(`/trip-preferences?destination=${encodeURIComponent(input.value)}`);
     }
   };
 
@@ -150,12 +162,24 @@ export default function Home() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: user ? 'transparent' : 'rgba(0, 0, 0, 0.5)',
+        zIndex: 1,
       }}>
+        {!hasProfile && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            zIndex: -1,
+          }} />
+        )}
         <div style={{
           textAlign: 'center',
           color: 'white',
           textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)',
+          zIndex: 2,
         }}>
           {!hasProfile ? (
             <>
@@ -181,7 +205,7 @@ export default function Home() {
           ) : (
             <>
               <h1 style={{ fontSize: '3rem', marginBottom: '2rem' }}>
-                Hi there, lead the wAI.
+                Hi {user?.name || 'there'}, lead the wAI.
               </h1>
               <form onSubmit={handleDestinationSearch} style={{ position: 'relative' }}>
                 <input
@@ -208,14 +232,14 @@ export default function Home() {
         <aside style={{
           position: 'fixed',
           top: 0,
-          right: 0,
+          left: 0,
           width: '300px',
           height: '100vh',
-          background: 'white',
-          boxShadow: '-2px 0 5px rgba(0, 0, 0, 0.1)',
+          background: '#e6f3ff',
+          boxShadow: '2px 0 5px rgba(0, 0, 0, 0.1)',
           padding: '2rem',
           overflowY: 'auto',
-          zIndex: 40,
+          zIndex: 150,
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h2 style={{ margin: 0 }}>Past Itineraries</h2>
@@ -229,6 +253,19 @@ export default function Home() {
                 cursor: 'pointer',
                 padding: '0.25rem',
                 lineHeight: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f0f0f0';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
               ✕
@@ -240,7 +277,7 @@ export default function Home() {
               <div style={{
                 padding: '1rem',
                 marginBottom: '0.5rem',
-                background: '#f5f5f5',
+                background: '#ffffff',
                 borderRadius: '4px',
                 cursor: 'pointer',
               }}>
@@ -260,18 +297,18 @@ export default function Home() {
           style={{
             position: 'fixed',
             top: '50%',
-            right: 0,
+            left: 0,
             transform: 'translateY(-50%)',
-            background: '#ffffff',
-            border: '1px solid #ddd',
-            borderRadius: '8px 0 0 8px',
+            background: '#e6f3ff',
+            border: '1px solid #cce4ff',
+            borderRadius: '0 8px 8px 0',
             padding: '0.5rem',
             cursor: 'pointer',
-            zIndex: 45,
-            boxShadow: '-2px 2px 6px rgba(0,0,0,0.08)',
+            zIndex: 150,
+            boxShadow: '2px 2px 6px rgba(0,0,0,0.08)',
           }}
         >
-          ◀
+          ▶
         </button>
       )}
 
