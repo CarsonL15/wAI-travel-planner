@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
+import { useTrip } from '@/context/TripContext';
 
 export default function TripPreferences() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function TripPreferences() {
     tripPace: [] as string[],
     travelStyle: '',
   });
+  const { setPrefs: setTripPrefs } = useTrip();
 
   const paceOptions = ['Relaxed', 'Moderate', 'Fast-paced', 'Busy'];
   const attractionOptions = ['Popular', 'Hidden gems', 'Cultural', 'Nature', 'Mixed'];
@@ -49,7 +51,23 @@ export default function TripPreferences() {
       destination: destination || '',
     };
     console.log('Trip Data:', tripData);
-    // Navigate to itinerary editor
+    // Save into TripContext, then navigate to itinerary editor
+    try {
+      setTripPrefs({
+        tripName: tripData.tripName,
+        destination: String(tripData.destination || ''),
+        interests: tripData.interests,
+        placesWanted: tripData.placesWanted,
+        attractionType: tripData.attractionType,
+        budget: tripData.budget,
+        people: tripData.people,
+        duration: tripData.duration,
+        tripPace: tripData.tripPace,
+        travelStyle: tripData.travelStyle,
+      });
+    } catch (e) {
+      console.warn('Failed to set trip prefs in context', e);
+    }
     router.push('/itinerary-editor');
   };
 
@@ -76,9 +94,9 @@ export default function TripPreferences() {
         }}
       >
         <img
-          src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1600&auto=format&fit=crop&s=0f2b0b5f0c3a9b8e5c7b6f3a1b2c4d5e"
+          src="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=2346"
           alt="Mountains and forest"
-          style={{ width: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 8, marginBottom: 16 }}
+          style={{ width: '100%', maxHeight: 1500, objectFit: 'cover', marginBottom: 16 }}
         />
 
         <h1 style={{ color: '#4B0082', marginBottom: 8 }}>

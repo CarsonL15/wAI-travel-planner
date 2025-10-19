@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useUser } from '@/context/UserContext';
+import { useTrip } from '@/context/TripContext';
 
 interface TripPreferences {
   location: string;
@@ -45,6 +46,7 @@ interface PastItinerary {
 export default function ItineraryEditor() {
   const router = useRouter();
   const { user } = useUser();
+  const { prefs } = useTrip();
   const [preferences, setPreferences] = useState<TripPreferences | null>(null);
   const [itinerary, setItinerary] = useState<DayPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +81,24 @@ export default function ItineraryEditor() {
   ];
 
   useEffect(() => {
-    // In a real app, fetch preferences from your backend/context
+    if (prefs) {
+      const mapped: TripPreferences = {
+        location: prefs.destination || 'Unknown',
+        duration: prefs.duration,
+        groupSize: prefs.people,
+        interests: prefs.interests ? prefs.interests.split(',').map(s => s.trim()).filter(Boolean) : [],
+        attractionType: (prefs.attractionType[0] || 'mixed') as any,
+        budget: (prefs.budget || 'moderate') as any,
+        tripPace: (prefs.tripPace[0] || 'moderate') as any,
+        travelStyle: prefs.travelStyle || 'cultural',
+        mustSeeAttractions: prefs.placesWanted ? prefs.placesWanted.split(',').map(s => s.trim()).filter(Boolean) : [],
+      };
+      setPreferences(mapped);
+      generateInitialItinerary(mapped);
+      return;
+    }
+
+    // fallback mock
     const mockPreferences: TripPreferences = {
       location: "Paris, France",
       duration: 5,
@@ -93,7 +112,7 @@ export default function ItineraryEditor() {
     };
     setPreferences(mockPreferences);
     generateInitialItinerary(mockPreferences);
-  }, []);
+  }, [prefs]);
 
   const generateInitialItinerary = async (prefs: TripPreferences) => {
     setIsGenerating(true);
