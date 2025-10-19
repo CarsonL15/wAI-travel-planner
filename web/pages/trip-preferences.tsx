@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
 
 export default function TripPreferences() {
+  const router = useRouter();
+  const { destination } = router.query;
+  const [tripName, setTripName] = useState('');
+  
   const [prefs, setPrefs] = useState({
     interests: '',
     placesWanted: '',
@@ -38,8 +43,14 @@ export default function TripPreferences() {
   };
 
   const save = () => {
-    console.log('Preferences:', prefs);
-    alert('Generating Itinerary (placeholder).');
+    const tripData = {
+      ...prefs,
+      tripName,
+      destination: destination || '',
+    };
+    console.log('Trip Data:', tripData);
+    // Navigate to itinerary editor
+    router.push('/itinerary-editor');
   };
 
   const durationPercent = Math.round(((prefs.duration - 1) / (14 - 1)) * 100);
@@ -70,7 +81,29 @@ export default function TripPreferences() {
           style={{ width: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 8, marginBottom: 16 }}
         />
 
-        <h1 style={{ color: '#4B0082', marginBottom: 8 }}> Trip Preferences</h1>
+        <h1 style={{ color: '#4B0082', marginBottom: 8 }}>
+          {destination ? `Your trip to ${destination}` : 'Trip Preferences'}
+        </h1>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', fontWeight: 700, marginBottom: 6 }}>
+            Give your trip a name!
+            <input
+              type="text"
+              value={tripName}
+              onChange={(e) => setTripName(e.target.value)}
+              placeholder="e.g., Summer Adventure 2025"
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                marginTop: '0.5rem',
+                borderRadius: 6,
+                border: '1px solid #ddd',
+                fontSize: '1rem'
+              }}
+            />
+          </label>
+        </div>
 
         <div style={{ marginBottom: '1rem' }}>
           <label style={{ display: 'block', fontWeight: 700, marginBottom: 6 }}>Duration (days): {prefs.duration}</label>
