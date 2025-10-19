@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 export default function ItineraryEditor() {
+  const router = useRouter();
   const [itinerary, setItinerary] = useState({
     title: '',
     destination: '',

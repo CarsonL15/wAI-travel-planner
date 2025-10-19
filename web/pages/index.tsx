@@ -46,6 +46,7 @@ const interactiveMapOptions = {
 };
 
 export default function Home() {
+  const router = useRouter();
   const { user, setUser } = useUser();
   // controls which "index page" state is shown; defaults to false on reload
   const [hasProfile, setHasProfile] = useState(false);
@@ -54,6 +55,11 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const clientUser = isMounted ? user : null;
   useEffect(() => { setIsMounted(true); }, []);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  useEffect(() => {
+    // automatically open sidebar when a profile becomes available
+    if (hasProfile) setSidebarOpen(true);
+  }, [hasProfile]);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number; } | null>(null);
   const [pastItineraries, setPastItineraries] = useState<PastItinerary[]>([]);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -197,8 +203,9 @@ export default function Home() {
         </div>
       </div>
 
-      {hasProfile && (
-        <div style={{
+      {/* Sidebar panel (separate open state so closing doesn't remove profile state) */}
+      {hasProfile && sidebarOpen && (
+        <aside style={{
           position: 'fixed',
           top: 0,
           right: 0,
@@ -208,8 +215,26 @@ export default function Home() {
           boxShadow: '-2px 0 5px rgba(0, 0, 0, 0.1)',
           padding: '2rem',
           overflowY: 'auto',
+          zIndex: 40,
         }}>
-          <h2 style={{ marginBottom: '1rem' }}>Past Itineraries</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2 style={{ margin: 0 }}>Past Itineraries</h2>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close sidebar"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                fontSize: '1.25rem',
+                cursor: 'pointer',
+                padding: '0.25rem',
+                lineHeight: 1,
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
           {pastItineraries.map((itinerary) => (
             <Link href={`/itinerary/${itinerary.id}`} key={itinerary.id}>
               <div style={{
@@ -219,12 +244,35 @@ export default function Home() {
                 borderRadius: '4px',
                 cursor: 'pointer',
               }}>
-                <h3>{itinerary.destination}</h3>
-                <p style={{ color: '#666' }}>{itinerary.date}</p>
+                <h3 style={{ margin: 0 }}>{itinerary.destination}</h3>
+                <p style={{ color: '#666', marginTop: '0.25rem' }}>{itinerary.date}</p>
               </div>
             </Link>
           ))}
-        </div>
+        </aside>
+      )}
+
+      {/* Small tab to re-open the sidebar when closed */}
+      {hasProfile && !sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open sidebar"
+          style={{
+            position: 'fixed',
+            top: '50%',
+            right: 0,
+            transform: 'translateY(-50%)',
+            background: '#ffffff',
+            border: '1px solid #ddd',
+            borderRadius: '8px 0 0 8px',
+            padding: '0.5rem',
+            cursor: 'pointer',
+            zIndex: 45,
+            boxShadow: '-2px 2px 6px rgba(0,0,0,0.08)',
+          }}
+        >
+          ◀
+        </button>
       )}
 
       {showCreateModal && (
