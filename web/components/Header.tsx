@@ -3,7 +3,7 @@ import Link from 'next/link';
 export default function Header() {
   return (
     <header style={{ padding: '1rem 2rem', borderBottom: '1px solid #eee', marginBottom: '1.5rem' }}>
-      <div style={{ maxWidth: 1000, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ maxWidth: 1000, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Link href="/">
           <strong style={{ fontSize: '1.1rem' }}>wAI Travel Planner</strong>
         </Link>

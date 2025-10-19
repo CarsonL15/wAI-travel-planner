@@ -1,31 +1,23 @@
-import { useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import CreateUserModal from '../components/CreateUserModal';
 
-export default function CreateUser() {
-  const [form, setForm] = useState({ username: '', email: '' });
+// Single canonical page for the create-user modal. Supports query param ?step=name|interests
+export default function CreateUserPage() {
+  const router = useRouter();
+  const [initialStep, setInitialStep] = useState<1 | 2>(1);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Create user data:', form);
-    alert('User create submitted (placeholder).');
+  useEffect(() => {
+    const s = router.query.step;
+    if (s === 'interests') setInitialStep(2);
+    else setInitialStep(1);
+  }, [router.query.step]);
+
+  const handleClose = () => {
+    // navigate back home when modal closes
+    router.push('/', undefined, { shallow: true });
   };
 
-  return (
-    <div style={{ padding: '2rem', maxWidth: 700, margin: '0 auto' }}>
-      <h1>Create User Profile</h1>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>Username: <input value={form.username} onChange={(e) => setForm({...form, username: e.target.value})} /></label>
-        </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>Email: <input value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} type="email" /></label>
-        </div>
-        <button type="submit">Create</button>
-      </form>
-
-      <div style={{ marginTop: '1rem' }}>
-        <Link href="/"><button>Back Home</button></Link>
-      </div>
-    </div>
-  );
+  // Always render the modal open on this page so visiting /create-user opens the flow.
+  return <CreateUserModal open={true} initialStep={initialStep} onClose={handleClose} />;
 }
