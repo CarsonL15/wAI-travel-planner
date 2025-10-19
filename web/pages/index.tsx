@@ -1,11 +1,9 @@
-<<<<<<< HEAD
-=======
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Auth } from 'aws-amplify';
-import { useRouter } from 'next/router';
->>>>>>> mimi-intro
 import Link from 'next/link';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/router';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
+import CreateUserModal from '../components/CreateUserModal';
+import { useUser } from '@/context/UserContext';
 
 interface Profile {
   id: string;
@@ -48,37 +46,19 @@ const interactiveMapOptions = {
 };
 
 export default function Home() {
-<<<<<<< HEAD
-  return (
-    <div style={{ padding: '2rem', maxWidth: 800, margin: '0 auto' }}>
-      <h1>wAI Travel Planner — Home page</h1>
-      <p>Welcome, insert user name. Lead the wAI.</p>
-
-      <nav style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-        <Link href="/create-user"><button>Create User</button></Link>
-        <Link href="/trip-preferences"><button>Trip Preferences</button></Link>
-        <Link href="/itinerary-editor"><button>Itinerary Editor</button></Link>
-      </nav>
-
-      <section style={{ marginTop: '2rem' }}>
-        <h2>Notes</h2>
-        <ul>
-          <li>Each page is a placeholder with a small form or editor.</li>
-          <li>Remove auth/data wiring for now; add GraphQL/Auth later.</li>
-        </ul>
-      </section>
-    </div>
-=======
-  const [user, setUser] = useState<{ username: string; id: string; } | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, setUser } = useUser();
+  // controls which "index page" state is shown; defaults to false on reload
+  const [hasProfile, setHasProfile] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const clientUser = isMounted ? user : null;
+  useEffect(() => { setIsMounted(true); }, []);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number; } | null>(null);
   const [pastItineraries, setPastItineraries] = useState<PastItinerary[]>([]);
-  const searchInputRef = useRef(null);
-  const router = useRouter();
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    checkUser();
     // Mock past itineraries - replace with actual API call
     setPastItineraries([
       { id: '1', destination: 'Paris, France', date: '2025-09-15' },
@@ -86,33 +66,15 @@ export default function Home() {
     ]);
   }, []);
 
-  const checkUser = async () => {
-    try {
-      const currentUser = await Auth.currentAuthenticatedUser();
-      setUser(currentUser);
-      // Mock profile check - replace with actual API call
-      const userProfile = await fetchUserProfile(currentUser.id);
-      setProfile(userProfile);
-    } catch (error) {
-      console.log('No authenticated user');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Mock function - replace with actual API call
-  const fetchUserProfile = async (userId: string) => {
-    return null; // Simulate no profile yet
-  };
 
   const handleMapClick = useCallback((event: any) => {
-    if (profile && event.latLng) {
+    if (user && event.latLng) {
       setSelectedLocation({
         lat: event.latLng.lat(),
         lng: event.latLng.lng(),
       });
     }
-  }, [profile]);
+  }, [user]);
 
   const handleDestinationSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,21 +94,60 @@ export default function Home() {
     return <div>Loading...</div>;
   }
 
+  const clearUserData = () => {
+    try {
+      localStorage.removeItem('user');
+      sessionStorage.removeItem('user');
+      // clear all cookies (basic)
+      document.cookie.split(';').forEach((c) => {
+        document.cookie = c.replace(/=.*/, '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/');
+      });
+    } catch (e) {
+      // ignore
+    }
+    window.location.reload();
+  };
+
   return (
     <>
       <LoadScript 
-        googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyAEf5gOP7tIqD5uBgk--pQ7r2seTiEAQEg'}
-        onLoad={() => console.log('Google Maps Script loaded successfully')}
-        onError={(error) => console.error('Google Maps Script failed to load:', error)}
+        googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}
+        onLoad={() => {
+          console.log('Google Maps Script loaded successfully');
+          setLoading(false);
+        }}
+        onError={(error) => {
+          console.error('Google Maps Script failed to load:', error);
+          setLoading(true);
+        }}
       >
         <GoogleMap
           mapContainerStyle={mapContainerStyle as any}
-          center={profile ? selectedLocation || centerNoProfile : centerNoProfile}
-          zoom={profile ? 4 : 3}
+          center={hasProfile ? selectedLocation || centerNoProfile : centerNoProfile}
+          zoom={hasProfile ? 4 : 3}
           onClick={handleMapClick}
-          options={profile ? interactiveMapOptions : staticMapOptions}
+          options={hasProfile ? interactiveMapOptions : staticMapOptions}
         >
-          {selectedLocation && profile && (
+          {selectedLocation && hasProfile && (
+  return (
+    <div style={{ padding: '2rem', maxWidth: 800, margin: '0 auto' }}>
+      <h1>wAI Travel Planner — Home page</h1>
+      <p>Welcome, insert user name. Lead the wAI.</p>
+
+      <nav style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+        <Link href="/create-user"><button>Create User</button></Link>
+        <Link href="/trip-preferences"><button>Trip Preferences</button></Link>
+        <Link href="/itinerary-editor"><button>Itinerary Editor</button></Link>
+      </nav>
+
+      <section style={{ marginTop: '2rem' }}>
+        <h2>Notes</h2>
+        <ul>
+          <li>Each page is a placeholder with a small form or editor.</li>
+          <li>Remove auth/data wiring for now; add GraphQL/Auth later.</li>
+        </ul>
+      </section>
+    </div>
             <Marker position={selectedLocation} />
           )}
         </GoogleMap>
@@ -162,20 +163,21 @@ export default function Home() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: profile ? 'transparent' : 'rgba(0, 0, 0, 0.5)',
+        background: user ? 'transparent' : 'rgba(0, 0, 0, 0.5)',
       }}>
         <div style={{
           textAlign: 'center',
           color: 'white',
           textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)',
         }}>
-          {!profile ? (
+          {!hasProfile ? (
             <>
               <h1 style={{ fontSize: '3rem', marginBottom: '2rem' }}>
                 Welcome explorer, lead the wAI.
               </h1>
-              <Link href="/profile">
-                <button style={{
+              <button
+                onClick={() => setShowCreateModal(true)}
+                style={{
                   padding: '1rem 2rem',
                   fontSize: '1.2rem',
                   borderRadius: '8px',
@@ -184,15 +186,15 @@ export default function Home() {
                   border: 'none',
                   cursor: 'pointer',
                   boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                }}>
-                  Create User Profile
-                </button>
-              </Link>
+                }}
+              >
+                Create User Profile
+              </button>
             </>
           ) : (
             <>
               <h1 style={{ fontSize: '3rem', marginBottom: '2rem' }}>
-                Hi {user?.username}, lead the wAI.
+                Hi there, lead the wAI.
               </h1>
               <form onSubmit={handleDestinationSearch} style={{ position: 'relative' }}>
                 <input
@@ -214,7 +216,7 @@ export default function Home() {
         </div>
       </div>
 
-      {profile && (
+      {hasProfile && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -243,7 +245,17 @@ export default function Home() {
           ))}
         </div>
       )}
+
+      {showCreateModal && (
+        <CreateUserModal
+          onClose={() => setShowCreateModal(false)}
+          onUserCreated={(newUser) => {
+            if (newUser) setUser?.(newUser);
+            setHasProfile(true);
+            setShowCreateModal(false);
+          }}
+        />
+      )}
     </>
->>>>>>> mimi-intro
   );
 }
