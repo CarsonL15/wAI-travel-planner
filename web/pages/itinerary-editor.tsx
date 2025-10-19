@@ -376,6 +376,135 @@ export default function ItineraryEditor() {
           </button>
         </div>
 
+        {/* Activity Modal */}
+        {showActivityModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000,
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '0.75rem',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '90%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              position: 'relative',
+            }}>
+              <h2 style={{ 
+                fontSize: '1.5rem', 
+                fontWeight: 'bold',
+                marginBottom: '1.5rem',
+                textAlign: 'center'
+              }}>
+                Add New Activity
+              </h2>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem' }}>
+                  Type:
+                </label>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button
+                    onClick={() => setActivityType('place')}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      backgroundColor: activityType === 'place' ? '#3B82F6' : '#F3F4F6',
+                      color: activityType === 'place' ? 'white' : '#374151',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      cursor: 'pointer',
+                      flex: 1,
+                    }}
+                  >
+                    Place 📍
+                  </button>
+                  <button
+                    onClick={() => setActivityType('activity')}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      backgroundColor: activityType === 'activity' ? '#3B82F6' : '#F3F4F6',
+                      color: activityType === 'activity' ? 'white' : '#374151',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      cursor: 'pointer',
+                      flex: 1,
+                    }}
+                  >
+                    Activity 🎯
+                  </button>
+                </div>
+              </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem' }}>
+                  Description:
+                </label>
+                <textarea
+                  value={activityInput}
+                  onChange={(e) => setActivityInput(e.target.value)}
+                  placeholder={activityType === 'place' ? 
+                    "Enter a place name or address..." : 
+                    "Describe the activity you'd like to do..."}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: '0.5rem',
+                    border: '1px solid #E5E7EB',
+                    minHeight: '100px',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem',
+                borderTop: '1px solid #E5E7EB',
+                paddingTop: '1rem'
+              }}>
+                <button
+                  onClick={() => {
+                    setShowActivityModal(false);
+                    setActivityInput('');
+                    setActivityType(null);
+                  }}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#F3F4F6',
+                    color: '#374151',
+                    borderRadius: '0.5rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddActivity}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: activityType && activityInput.trim() ? '#3B82F6' : '#93C5FD',
+                    color: 'white',
+                    borderRadius: '0.5rem',
+                    border: 'none',
+                    cursor: activityType && activityInput.trim() ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Day Type Selection Modal */}
         {showDayTypeModal && (
           <div style={{
