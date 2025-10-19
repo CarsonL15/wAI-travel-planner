@@ -273,13 +273,22 @@ export default function Home() {
           </div>
 
           {pastItineraries.map((itinerary) => (
-            <Link href={`/itinerary/${itinerary.id}`} key={itinerary.id}>
+            <Link href="/itinerary-editor" key={itinerary.id}>
               <div style={{
                 padding: '1rem',
                 marginBottom: '0.5rem',
                 background: '#ffffff',
                 borderRadius: '4px',
                 cursor: 'pointer',
+                transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
               }}>
                 <h3 style={{ margin: 0 }}>{itinerary.destination}</h3>
                 <p style={{ color: '#666', marginTop: '0.25rem' }}>{itinerary.date}</p>

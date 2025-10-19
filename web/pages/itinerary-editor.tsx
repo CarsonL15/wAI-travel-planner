@@ -23,6 +23,7 @@ interface Activity {
   duration: string;
   cost: string;
   type: string;
+  imageUrl: string;
 }
 
 interface DayPlan {
@@ -110,7 +111,8 @@ export default function ItineraryEditor() {
             description: "Start your day with fresh croissants and coffee",
             duration: "1 hour",
             cost: "€15",
-            type: "food"
+            type: "food",
+            imageUrl: "https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=400&q=80"
           },
           {
             id: `${i}-2`,
@@ -119,7 +121,10 @@ export default function ItineraryEditor() {
             description: "Explore the iconic landmark",
             duration: "2 hours",
             cost: "€30",
-            type: "attraction"
+            type: "attraction",
+            imageUrl: i === 0 
+              ? "https://images.unsplash.com/photo-1543349689-9a4d426bee8e?w=400&q=80" 
+              : "https://images.unsplash.com/photo-1582034986517-30d163b1e57f?w=400&q=80"
           },
           // Add more activities as needed
         ]
@@ -191,7 +196,10 @@ export default function ItineraryEditor() {
         description: `Added ${activityType}: ${activityInput}`,
         duration: "2 hours", // AI would determine duration
         cost: "€€", // AI would estimate cost
-        type: activityType
+        type: activityType,
+        imageUrl: activityType === 'place' 
+          ? "https://images.unsplash.com/photo-1577791465485-b80039b4d69a?w=400&q=80" 
+          : "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=400&q=80"
       };
 
       // Update the itinerary with the new activity
@@ -327,7 +335,9 @@ export default function ItineraryEditor() {
                     borderRadius: '0.5rem',
                     backgroundColor: 'white',
                     cursor: 'pointer',
-                    transition: 'background-color 0.2s'
+                    transition: 'background-color 0.2s',
+                    gap: '1rem',
+                    overflow: 'hidden'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = '#F9FAFB';
@@ -338,6 +348,23 @@ export default function ItineraryEditor() {
                 >
                   <div style={{ width: '6rem', color: '#6B7280' }}>
                     {activity.time}
+                  </div>
+                  <div style={{ 
+                    width: '120px', 
+                    height: '120px', 
+                    flexShrink: 0,
+                    borderRadius: '0.5rem',
+                    overflow: 'hidden'
+                  }}>
+                    <img 
+                      src={activity.imageUrl} 
+                      alt={activity.name}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
                   </div>
                   <div style={{ flex: 1 }}>
                     <h3 style={{ fontWeight: '500', color: '#111827' }}>{activity.name}</h3>
