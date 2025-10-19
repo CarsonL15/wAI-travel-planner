@@ -11,6 +11,10 @@ export type TripPreferencesPayload = {
   duration: number;
   tripPace: string[];
   travelStyle: string;
+  // AI-generated itinerary (optional)
+  generatedItinerary?: any[];
+  // Raw AI output (optional)
+  aiRaw?: string;
 };
 
 type TripContextValue = {

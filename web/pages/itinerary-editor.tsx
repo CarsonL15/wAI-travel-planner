@@ -46,12 +46,14 @@ interface PastItinerary {
 export default function ItineraryEditor() {
   const router = useRouter();
   const { user } = useUser();
-  const { prefs } = useTrip();
+  const { prefs: tripCtxPrefs, setPrefs } = useTrip();
   const [preferences, setPreferences] = useState<TripPreferences | null>(null);
   const [itinerary, setItinerary] = useState<DayPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [geminiRaw, setGeminiRaw] = useState<string | null>(null);
+  const [showRawOutput, setShowRawOutput] = useState(false);
   const [showDayTypeModal, setShowDayTypeModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [selectedDayTypes, setSelectedDayTypes] = useState<string[]>([]);
@@ -62,7 +64,7 @@ export default function ItineraryEditor() {
   useEffect(() => {
     // Mock past itineraries - replace with actual API call
     setPastItineraries([
-      { id: '1', destination: 'Paris, France', date: '2025-09-15' },
+      { id: '1', destination: 'Zurich, Switzerland', date: '2025-09-15' },
       { id: '2', destination: 'Tokyo, Japan', date: '2025-08-01' },
     ]);
   }, []);
@@ -81,17 +83,38 @@ export default function ItineraryEditor() {
   ];
 
   useEffect(() => {
-    if (prefs) {
+    if (tripCtxPrefs) {
+      // If the context already contains a generated itinerary, use it and don't call the AI again.
+      if (tripCtxPrefs.generatedItinerary && Array.isArray(tripCtxPrefs.generatedItinerary) && tripCtxPrefs.generatedItinerary.length > 0) {
+        const mappedFromCtx: TripPreferences = {
+          location: tripCtxPrefs.destination || 'Unknown',
+          duration: tripCtxPrefs.duration,
+          groupSize: tripCtxPrefs.people,
+          interests: tripCtxPrefs.interests ? tripCtxPrefs.interests.split(',').map(s => s.trim()).filter(Boolean) : [],
+          attractionType: (tripCtxPrefs.attractionType?.[0] || 'mixed') as any,
+          budget: (tripCtxPrefs.budget || 'moderate') as any,
+          tripPace: (tripCtxPrefs.tripPace?.[0] || 'moderate') as any,
+          travelStyle: tripCtxPrefs.travelStyle || 'cultural',
+          mustSeeAttractions: tripCtxPrefs.placesWanted ? tripCtxPrefs.placesWanted.split(',').map(s => s.trim()).filter(Boolean) : [],
+        };
+        setPreferences(mappedFromCtx);
+        // Use generated itinerary from context
+        setItinerary(tripCtxPrefs.generatedItinerary as DayPlan[]);
+        setGeminiRaw(tripCtxPrefs.aiRaw ?? null);
+        setLoading(false);
+        return;
+      }
+
       const mapped: TripPreferences = {
-        location: prefs.destination || 'Unknown',
-        duration: prefs.duration,
-        groupSize: prefs.people,
-        interests: prefs.interests ? prefs.interests.split(',').map(s => s.trim()).filter(Boolean) : [],
-        attractionType: (prefs.attractionType[0] || 'mixed') as any,
-        budget: (prefs.budget || 'moderate') as any,
-        tripPace: (prefs.tripPace[0] || 'moderate') as any,
-        travelStyle: prefs.travelStyle || 'cultural',
-        mustSeeAttractions: prefs.placesWanted ? prefs.placesWanted.split(',').map(s => s.trim()).filter(Boolean) : [],
+        location: tripCtxPrefs.destination || 'Unknown',
+        duration: tripCtxPrefs.duration,
+        groupSize: tripCtxPrefs.people,
+        interests: tripCtxPrefs.interests ? tripCtxPrefs.interests.split(',').map(s => s.trim()).filter(Boolean) : [],
+        attractionType: (tripCtxPrefs.attractionType[0] || 'mixed') as any,
+        budget: (tripCtxPrefs.budget || 'moderate') as any,
+        tripPace: (tripCtxPrefs.tripPace[0] || 'moderate') as any,
+        travelStyle: tripCtxPrefs.travelStyle || 'cultural',
+        mustSeeAttractions: tripCtxPrefs.placesWanted ? tripCtxPrefs.placesWanted.split(',').map(s => s.trim()).filter(Boolean) : [],
       };
       setPreferences(mapped);
       generateInitialItinerary(mapped);
@@ -112,39 +135,57 @@ export default function ItineraryEditor() {
     };
     setPreferences(mockPreferences);
     generateInitialItinerary(mockPreferences);
-  }, [prefs]);
+  }, [tripCtxPrefs]);
 
   const generateInitialItinerary = async (prefs: TripPreferences) => {
     setIsGenerating(true);
     try {
-      // Here you would call your AI service
-      // For now, let's mock the response
-      const mockItinerary: DayPlan[] = Array.from({ length: prefs.duration }, (_, i) => ({
-        date: new Date(Date.now() + i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        activities: [
-          {
-            id: `${i}-1`,
-            time: "09:00",
-            name: "Breakfast at Local Café",
-            description: "Start your day with fresh croissants and coffee",
-            duration: "1 hour",
-            cost: "€15",
-            type: "food"
-          },
-          {
-            id: `${i}-2`,
-            time: "10:30",
-            name: i === 0 ? "Eiffel Tower Visit" : "Museum Visit",
-            description: "Explore the iconic landmark",
-            duration: "2 hours",
-            cost: "€30",
-            type: "attraction"
-          },
-          // Add more activities as needed
-        ]
-      }));
-      
-      setItinerary(mockItinerary);
+      // Call our API which proxies to Gemini
+      const resp = await fetch('/api/generate-itinerary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preferences: prefs })
+      });
+
+      const json = await resp.json();
+      if (!resp.ok) {
+        console.error('API error', json);
+        throw new Error(json?.error || 'Failed to generate itinerary');
+      }
+
+      // Save raw model output for inspection
+      setGeminiRaw(json.raw || null);
+
+      // Persist generated itinerary and raw output into TripContext
+      try {
+  const base = (tripCtxPrefs as any) || {};
+        const constructed = {
+          tripName: base.tripName,
+          destination: base.destination || tripCtxPrefs?.destination || prefs.location || preferences?.location,
+          interests: base.interests ?? (prefs ? prefs.interests.join(',') : (preferences ? preferences.interests.join(',') : '')),
+          placesWanted: base.placesWanted ?? (prefs ? prefs.mustSeeAttractions.join(',') : (preferences ? preferences.mustSeeAttractions.join(',') : '')),
+          attractionType: base.attractionType ?? (prefs ? [prefs.attractionType as string] : ['mixed']),
+          budget: base.budget ?? (prefs ? prefs.budget : 'moderate'),
+          people: base.people ?? (prefs ? prefs.groupSize : 1),
+          duration: base.duration ?? (prefs ? prefs.duration : 1),
+          tripPace: base.tripPace ?? (prefs ? [prefs.tripPace as string] : ['moderate']),
+          travelStyle: base.travelStyle ?? (prefs ? prefs.travelStyle : ''),
+          // attach AI outputs
+          generatedItinerary: json.itinerary ?? null,
+          aiRaw: json.raw ?? null,
+        } as any;
+
+        setPrefs(constructed);
+      } catch (e) {
+        console.warn('Failed to save generated itinerary to context', e);
+      }
+
+      // If API returned parsed itinerary, set it. Otherwise, keep mock fallback.
+      if (json.itinerary && Array.isArray(json.itinerary)) {
+        setItinerary(json.itinerary as DayPlan[]);
+      } else {
+        console.warn('API returned no itinerary array, using mock fallback');
+      }
     } catch (error) {
       console.error('Failed to generate itinerary:', error);
     } finally {
@@ -174,13 +215,53 @@ export default function ItineraryEditor() {
     
     setIsGenerating(true);
     try {
-      // Here you would call your AI service with selectedDayTypes
-      console.log('Regenerating day with types:', selectedDayTypes);
-      // Mock regeneration for now
-      alert('This would regenerate day ' + (selectedDay + 1) + ' with types: ' + 
-        selectedDayTypes.map(id => dayTypes.find(t => t.id === id)?.name).join(', '));
+      const resp = await fetch('/api/generate-itinerary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          preferences,
+          mode: 'regenerateDay',
+          dayIndex: selectedDay,
+          dayTypes: selectedDayTypes
+        })
+      });
+
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json?.error || 'API error');
+
+      setGeminiRaw(json.raw || null);
+      const [newDayPlan] = json.itinerary as DayPlan[];
+      setItinerary(current => {
+        const updated = [...current];
+        updated[selectedDay] = newDayPlan;
+
+        // Update TripContext with the modified itinerary and raw output
+        try {
+          const base = (tripCtxPrefs as any) || {};
+          const constructed = {
+            tripName: base.tripName,
+            destination: base.destination || tripCtxPrefs?.destination || preferences?.location,
+            interests: base.interests ?? (preferences ? preferences.interests.join(',') : ''),
+            placesWanted: base.placesWanted ?? (preferences ? preferences.mustSeeAttractions.join(',') : ''),
+            attractionType: base.attractionType ?? (preferences ? [preferences.attractionType as string] : ['mixed']),
+            budget: base.budget ?? (preferences ? preferences.budget : 'moderate'),
+            people: base.people ?? (preferences ? preferences.groupSize : 1),
+            duration: base.duration ?? (preferences ? preferences.duration : 1),
+            tripPace: base.tripPace ?? (preferences ? [preferences.tripPace as string] : ['moderate']),
+            travelStyle: base.travelStyle ?? (preferences ? preferences.travelStyle : ''),
+            generatedItinerary: updated,
+            aiRaw: json.raw ?? null,
+          } as any;
+          setPrefs(constructed);
+        } catch (e) {
+          console.warn('Failed to save regenerated itinerary to context', e);
+        }
+
+        return updated;
+      });
     } catch (error) {
       console.error('Failed to regenerate day:', error);
+      alert('Failed to regenerate day. See console for details.');
     } finally {
       setIsGenerating(false);
       setShowDayTypeModal(false);
@@ -394,6 +475,33 @@ export default function ItineraryEditor() {
             Back Home
           </button>
         </div>
+        {/* Raw AI output viewer */}
+        {geminiRaw && (
+          <div style={{ marginTop: '1rem', backgroundColor: 'white', padding: '1rem', borderRadius: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <strong>AI raw response</strong>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <button
+                  onClick={() => setShowRawOutput(s => !s)}
+                  style={{ padding: '0.25rem 0.5rem', borderRadius: '0.375rem', border: 'none', backgroundColor: '#F3F4F6', cursor: 'pointer' }}
+                >
+                  {showRawOutput ? 'Hide' : 'Show'}
+                </button>
+                <button
+                  onClick={() => { navigator.clipboard?.writeText(geminiRaw); }}
+                  style={{ padding: '0.25rem 0.5rem', borderRadius: '0.375rem', border: 'none', backgroundColor: '#E5E7EB', cursor: 'pointer' }}
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+            {showRawOutput && (
+              <pre style={{ marginTop: '0.75rem', maxHeight: '300px', overflow: 'auto', backgroundColor: '#F9FAFB', padding: '0.75rem', borderRadius: '0.375rem' }}>
+                {geminiRaw}
+              </pre>
+            )}
+          </div>
+        )}
 
         {/* Activity Modal */}
         {showActivityModal && (

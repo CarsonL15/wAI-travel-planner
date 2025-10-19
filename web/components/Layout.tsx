@@ -31,7 +31,7 @@ export default function Layout({ children }: LayoutProps) {
     
     // Mock past itineraries - replace with actual API call
     setPastItineraries([
-      { id: '1', destination: 'Paris, France', date: '2025-09-15' },
+      { id: '1', destination: 'Zurich, Switzerland', date: '2025-09-15' },
       { id: '2', destination: 'Tokyo, Japan', date: '2025-08-01' },
     ]);
   }, [user]);
