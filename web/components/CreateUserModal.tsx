@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
-import { useUser } from '../context/UserContext';
+import React, { useEffect, useState } from 'react';
+import { useUser } from '@/context/UserContext';
 
 const INTERESTS_DATA = [
   { id: 'culinary', name: 'Culinary Journeys', icon: '🍽️' },
@@ -16,14 +15,14 @@ const INTERESTS_DATA = [
 ];
 
 type Props = {
-  open: boolean;
+  open?: boolean;
   onClose?: () => void;
+  onUserCreated?: (user?: { name?: string; interests?: string[] }) => void;
   initialStep?: 1 | 2;
 };
 
-export default function CreateUserModal({ open, onClose, initialStep = 1 }: Props) {
-  const router = useRouter();
-  const { user, setUser } = useUser();
+export default function CreateUserModal({ open = true, onClose, onUserCreated, initialStep = 1 }: Props) {
+   const { user, setUser } = useUser();
 
   const [step, setStep] = useState<1 | 2>(initialStep);
   const [name, setName] = useState('');
@@ -38,19 +37,10 @@ export default function CreateUserModal({ open, onClose, initialStep = 1 }: Prop
     setSelectedInterests((user && Array.isArray(user.interests) ? user.interests : []) ?? []);
   }, [open, user]);
 
-  // keep URL in sync for navigation/bookmarking
-  useEffect(() => {
-    if (!open) return;
-    const path = step === 1 ? '/create-user/name' : '/create-user/interests';
-    router.push(path, undefined, { shallow: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, step]);
-
   if (!open) return null;
 
   const close = () => {
     onClose?.();
-    router.push('/', undefined, { shallow: true });
   };
 
   const goNext = () => setStep(2);
@@ -70,6 +60,8 @@ export default function CreateUserModal({ open, onClose, initialStep = 1 }: Prop
   const handleFinish = () => {
     const payload = { name, interests: selectedInterests };
     setUser(payload);
+    // notify parent and close (parent will set hasProfile true and hide modal)
+    onUserCreated?.(payload);
     alert(`Profile saved. Selected: ${selectedInterests.join(', ')}`);
     close();
   };
