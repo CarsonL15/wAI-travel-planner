@@ -93,13 +93,13 @@ export default function TripPreferences() {
           color: '#2b2340',
         }}
       >
-        <img
+        {/* <img
           src="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=2346"
           alt="Mountains and forest"
           style={{ width: '100%', maxHeight: 1500, objectFit: 'cover', marginBottom: 16 }}
-        />
+        /> */}
 
-        <h1 style={{ color: '#4B0082', marginBottom: 8 }}>
+        <h1 style={{ color: '#4B0082', marginBottom: 8, paddingTop: 50 }}>
           {destination ? `Your trip to ${destination}` : 'Trip Preferences'}
         </h1>
 
