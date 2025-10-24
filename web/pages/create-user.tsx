@@ -1,31 +1,77 @@
-import { useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import { GoogleMap, LoadScript } from '@react-google-maps/api';
+import CreateUserModal from '../components/CreateUserModal';
 
-export default function CreateUser() {
-  const [form, setForm] = useState({ username: '', email: '' });
+const mapContainerStyle = {
+  width: '100%',
+  height: '100vh',
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  zIndex: -1,
+};
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Create user data:', form);
-    alert('User create submitted (placeholder).');
+const centerNoProfile = {
+  lat: 10, // Centered on Atlantic to show Americas and Africa
+  lng: -30,
+};
+
+const staticMapOptions = {
+  disableDefaultUI: true,
+  zoomControl: false,
+  gestureHandling: 'none',
+};
+
+// Single canonical page for the create-user modal. Supports query param ?step=name|interests
+export default function CreateUserPage() {
+  const router = useRouter();
+  const [initialStep, setInitialStep] = useState<1 | 2>(1);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const s = router.query.step;
+    if (s === 'interests') setInitialStep(2);
+    else setInitialStep(1);
+  }, [router.query.step]);
+
+  const handleClose = () => {
+    // navigate back home when modal closes
+    router.push('/', undefined, { shallow: true });
   };
 
+  // Always render the modal open on this page so visiting /create-user opens the flow.
   return (
-    <div style={{ padding: '2rem', maxWidth: 700, margin: '0 auto' }}>
-      <h1>Create User Profile</h1>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>Username: <input value={form.username} onChange={(e) => setForm({...form, username: e.target.value})} /></label>
-        </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>Email: <input value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} type="email" /></label>
-        </div>
-        <button type="submit">Create</button>
-      </form>
-
-      <div style={{ marginTop: '1rem' }}>
-        <Link href="/"><button>Back Home</button></Link>
-      </div>
-    </div>
+    <>
+      <LoadScript 
+        googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}
+        onLoad={() => {
+          console.log('Google Maps Script loaded successfully');
+          setLoading(false);
+        }}
+        onError={(error) => {
+          console.error('Google Maps Script failed to load:', error);
+          setLoading(true);
+        }}
+      >
+        <GoogleMap
+          mapContainerStyle={mapContainerStyle as any}
+          center={centerNoProfile}
+          zoom={3}
+          options={staticMapOptions}
+        />
+      </LoadScript>
+      
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100vh',
+        background: 'rgba(0, 0, 0, 0.5)',
+      }} />
+      
+      <CreateUserModal open={true} initialStep={initialStep} onClose={handleClose} />
+    </>
   );
 }
