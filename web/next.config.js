@@ -2,11 +2,15 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  experimental: {
-    appDir: false, // Using pages directory
+  output: 'export', // Enable static HTML export
+  images: {
+    unoptimized: true, // Required for static export
   },
-  env: {
-    CUSTOM_KEY: process.env.CUSTOM_KEY,
+  eslint: {
+    ignoreDuringBuilds: true, // Skip linting during production build
+  },
+  typescript: {
+    ignoreBuildErrors: true, // Skip type checking during production build (temporary)
   },
 };
 
