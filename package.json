@@ -5,7 +5,6 @@
   "private": true,
   "workspaces": [
     "web",
-    "backend",
     "mcp-server"
   ],
   "scripts": {
