@@ -78,12 +78,19 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       dayDates.push(d.toISOString().split('T')[0]);
     }
 
-    const prompt = `Create a ${body.duration}-day itinerary for ${body.destination}. Style: ${travelStyle}, pace: ${pace}, interests: ${interestList || 'sightseeing'}.
+    // Rotate themes for variety
+    const themes = ['landmarks', 'neighborhoods', 'culture', 'nature', 'food', 'history', 'markets'];
 
-Return ONLY this JSON (3-4 activities per day):
-{"destination":"${body.destination}","startDate":"${body.startDate}","endDate":"${endDateStr}","days":[${dayDates.map((date, i) => `{"date":"${date}","blocks":[{"id":"d${i + 1}a1","start":"09:00","end":"11:00","title":"Morning activity","category":"sightseeing","costBand":"med","notes":"Brief note","address":"Address"},{"id":"d${i + 1}a2","start":"12:00","end":"13:30","title":"Lunch","category":"food","costBand":"med","notes":"Brief note","address":"Address"},{"id":"d${i + 1}a3","start":"14:30","end":"17:00","title":"Afternoon activity","category":"culture","costBand":"med","notes":"Brief note","address":"Address"}]}`).join(',')}],"packingList":["item1","item2","item3"],"rationalePerDay":[${dayDates.map((_, i) => `"Day ${i + 1} focus"`).join(',')}]}
+    const prompt = `${body.duration}-day ${body.destination} itinerary. Style: ${travelStyle}, pace: ${pace}, interests: ${interestList || 'sightseeing'}.
 
-Replace placeholders with real ${body.destination} attractions, restaurants, and activities. Categories: food, museum, outdoors, shopping, other. CostBand: low, med, high.`;
+RULES: Vary times (8am-11am starts), vary activity count (2-4/day), mix categories. Be specific with names/addresses.
+
+Return ONLY JSON:
+{"destination":"${body.destination}","startDate":"${body.startDate}","endDate":"${endDateStr}","days":[${dayDates.map((date, i) => `{"date":"${date}","blocks":[{"id":"d${i+1}a1","start":"TIME","end":"TIME","title":"NAME","category":"CAT","costBand":"COST","notes":"TIP","address":"ADDR"}]}`).join(',')}],"packingList":["items"],"rationalePerDay":["themes"]}
+
+Day focuses: ${dayDates.map((_, i) => `D${i+1}:${themes[i % themes.length]}`).join(', ')}
+
+Categories: food/sightseeing/culture/outdoors/shopping/nightlife. CostBand: low/med/high. Use REAL places in ${body.destination}. 3-4 activities per day with varied times.`;
 
     const response = await bedrock.send(
       new InvokeModelCommand({
@@ -92,8 +99,8 @@ Replace placeholders with real ${body.destination} attractions, restaurants, and
         contentType: 'application/json',
         body: JSON.stringify({
           anthropic_version: 'bedrock-2023-05-31',
-          max_tokens: 2048,
-          temperature: 0.7,
+          max_tokens: 3000,
+          temperature: 0.75,
           messages: [{ role: 'user', content: prompt }],
         }),
       })
@@ -101,14 +108,51 @@ Replace placeholders with real ${body.destination} attractions, restaurants, and
 
     const result = JSON.parse(new TextDecoder().decode(response.body));
     const content = result.content[0].text;
-    
-    // Extract JSON from response
+
+    // Extract JSON from response - find the outermost braces
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('No JSON found in Bedrock response');
     }
-    
-    const itinerary = JSON.parse(jsonMatch[0]);
+
+    let jsonStr = jsonMatch[0];
+
+    // Try to fix common JSON issues from AI responses
+    // Remove trailing commas before ] or }
+    jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+    // Remove any text after the last }
+    const lastBrace = jsonStr.lastIndexOf('}');
+    if (lastBrace !== -1) {
+      jsonStr = jsonStr.substring(0, lastBrace + 1);
+    }
+
+    let itinerary;
+    try {
+      itinerary = JSON.parse(jsonStr);
+    } catch (parseError) {
+      console.error('JSON parse error, attempting recovery. Raw content:', content);
+      // Try to extract just what we need and build a valid structure
+      // This is a fallback - create a basic structure if parsing fails
+      const destMatch = content.match(/"destination"\s*:\s*"([^"]+)"/);
+      const destination = destMatch ? destMatch[1] : body.destination;
+
+      itinerary = {
+        destination,
+        startDate: body.startDate,
+        endDate: endDateStr,
+        days: dayDates.map((date, i) => ({
+          date,
+          blocks: [
+            { id: `d${i+1}a1`, start: '09:00', end: '12:00', title: `Morning in ${destination}`, category: 'sightseeing', costBand: 'med', notes: 'Explore the area', address: destination },
+            { id: `d${i+1}a2`, start: '12:30', end: '14:00', title: 'Local Lunch', category: 'food', costBand: 'med', notes: 'Try local cuisine', address: destination },
+            { id: `d${i+1}a3`, start: '15:00', end: '18:00', title: `Afternoon in ${destination}`, category: 'culture', costBand: 'med', notes: 'Cultural experience', address: destination },
+          ]
+        })),
+        packingList: ['Comfortable walking shoes', 'Weather-appropriate clothing', 'Camera'],
+        rationalePerDay: dayDates.map((_, i) => `Day ${i + 1}: Explore ${destination}`)
+      };
+      console.log('Using fallback itinerary structure');
+    }
 
     // Save to DynamoDB
     const id = `ITIN-${Date.now()}`;

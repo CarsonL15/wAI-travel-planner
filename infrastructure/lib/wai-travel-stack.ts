@@ -83,22 +83,49 @@ export class WaiTravelStack extends cdk.Stack {
       },
     });
 
+    const updateItineraryFn = new lambdaNodejs.NodejsFunction(this, 'UpdateItinerary', {
+      entry: '../backend/functions/updateItinerary.ts',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        TABLE_NAME: table.tableName,
+      },
+    });
+
+    const regenerateActivitiesFn = new lambdaNodejs.NodejsFunction(this, 'RegenerateActivities', {
+      entry: '../backend/functions/regenerateActivities.ts',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      timeout: cdk.Duration.seconds(30),
+    });
+
+    const getItinerariesFn = new lambdaNodejs.NodejsFunction(this, 'GetItineraries', {
+      entry: '../backend/functions/getItineraries.ts',
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      environment: {
+        TABLE_NAME: table.tableName,
+      },
+    });
+
     // Grant permissions
     table.grantReadWriteData(generateItineraryFn);
     table.grantReadData(getItineraryFn);
+    table.grantReadData(getItinerariesFn);
     table.grantReadData(getUserFn);
     table.grantReadWriteData(saveUserPreferencesFn);
+    table.grantReadWriteData(updateItineraryFn);
 
     // Bedrock access - allow both Haiku (fast) and Sonnet (detailed)
-    generateItineraryFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ['bedrock:InvokeModel'],
-        resources: [
-          'arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0',
-          'arn:aws:bedrock:*::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0',
-        ],
-      })
-    );
+    const bedrockPolicy = new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: [
+        'arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0',
+        'arn:aws:bedrock:*::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0',
+      ],
+    });
+    generateItineraryFn.addToRolePolicy(bedrockPolicy);
+    regenerateActivitiesFn.addToRolePolicy(bedrockPolicy);
 
     // 4. API Gateway with restricted CORS
     const api = new apigateway.RestApi(this, 'Api', {
@@ -106,7 +133,7 @@ export class WaiTravelStack extends cdk.Stack {
       description: 'wAI Travel Planner API',
       defaultCorsPreflightOptions: {
         allowOrigins: ['*'], // In production, replace with your domain
-        allowMethods: ['GET', 'POST', 'OPTIONS'],
+        allowMethods: ['GET', 'POST', 'PUT', 'OPTIONS'],
         allowHeaders: ['Content-Type', 'Authorization'],
       },
     });
@@ -116,7 +143,7 @@ export class WaiTravelStack extends cdk.Stack {
     const corsHeaders = {
       'Access-Control-Allow-Origin': "'*'",
       'Access-Control-Allow-Headers': "'Content-Type,Authorization'",
-      'Access-Control-Allow-Methods': "'GET,POST,OPTIONS'",
+      'Access-Control-Allow-Methods': "'GET,POST,PUT,OPTIONS'",
     };
 
     // Add CORS to default 4XX responses (auth errors, bad requests, etc.)
@@ -153,15 +180,22 @@ export class WaiTravelStack extends cdk.Stack {
     // Routes
     const itineraries = api.root.addResource('itineraries');
     itineraries.addMethod('POST', new apigateway.LambdaIntegration(generateItineraryFn), authOptions);
+    itineraries.addMethod('GET', new apigateway.LambdaIntegration(getItinerariesFn), authOptions);
 
     const itinerary = itineraries.addResource('{id}');
     itinerary.addMethod('GET', new apigateway.LambdaIntegration(getItineraryFn), authOptions);
+    itinerary.addMethod('PUT', new apigateway.LambdaIntegration(updateItineraryFn), authOptions);
 
     const user = api.root.addResource('user');
     user.addMethod('GET', new apigateway.LambdaIntegration(getUserFn), authOptions);
 
     const userPreferences = user.addResource('preferences');
     userPreferences.addMethod('POST', new apigateway.LambdaIntegration(saveUserPreferencesFn), authOptions);
+
+    // AI regeneration endpoint
+    const activities = api.root.addResource('activities');
+    const regenerate = activities.addResource('regenerate');
+    regenerate.addMethod('POST', new apigateway.LambdaIntegration(regenerateActivitiesFn), authOptions);
 
     // 5. S3 Static Website - RETAIN to prevent accidental deletion
     const websiteBucket = new s3.Bucket(this, 'Website', {

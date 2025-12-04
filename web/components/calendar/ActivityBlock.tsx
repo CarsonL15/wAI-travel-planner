@@ -14,8 +14,26 @@ interface ActivityBlockProps {
 }
 
 // Convert time string to minutes from midnight
+// Handles both "09:00" (24h) and "9:00 AM" / "1:00 PM" (12h) formats
 function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(':').map(Number);
+  // Check if it's 12-hour format with AM/PM
+  const isPM = time.toLowerCase().includes('pm');
+  const isAM = time.toLowerCase().includes('am');
+
+  // Remove AM/PM and trim
+  const cleanTime = time.replace(/\s*(am|pm)\s*/gi, '').trim();
+  const [hoursStr, minutesStr] = cleanTime.split(':');
+
+  let hours = parseInt(hoursStr, 10);
+  const minutes = parseInt(minutesStr, 10) || 0;
+
+  // Convert 12-hour to 24-hour if needed
+  if (isPM && hours !== 12) {
+    hours += 12;
+  } else if (isAM && hours === 12) {
+    hours = 0;
+  }
+
   return hours * 60 + minutes;
 }
 

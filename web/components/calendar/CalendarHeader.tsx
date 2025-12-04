@@ -1,11 +1,14 @@
 import { DESIGN, CALENDAR } from '../../lib/constants';
 
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 interface CalendarHeaderProps {
   tripName: string;
   totalDays: number;
   currentWeekStart: number;
   canUndo: boolean;
   canRedo: boolean;
+  saveStatus?: SaveStatus;
   onPrevWeek: () => void;
   onNextWeek: () => void;
   onUndo: () => void;
@@ -20,6 +23,7 @@ export default function CalendarHeader({
   currentWeekStart,
   canUndo,
   canRedo,
+  saveStatus = 'idle',
   onPrevWeek,
   onNextWeek,
   onUndo,
@@ -200,25 +204,68 @@ export default function CalendarHeader({
 
         <button
           onClick={onSave}
+          disabled={saveStatus === 'saving'}
           style={{
             padding: '8px 16px',
             border: 'none',
             borderRadius: DESIGN.radius.md,
-            background: DESIGN.gradients.primary,
+            background: saveStatus === 'saved'
+              ? DESIGN.colors.success
+              : saveStatus === 'error'
+                ? DESIGN.colors.error
+                : DESIGN.gradients.primary,
             color: 'white',
             fontSize: '14px',
             fontWeight: 500,
-            cursor: 'pointer',
+            cursor: saveStatus === 'saving' ? 'wait' : 'pointer',
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
+            opacity: saveStatus === 'saving' ? 0.8 : 1,
+            transition: `all ${DESIGN.transitions.fast}`,
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-            <path d="M17 21v-8H7v8M7 3v5h8" />
-          </svg>
-          Save Itinerary
+          {saveStatus === 'saving' ? (
+            <>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                style={{ animation: 'spin 1s linear infinite' }}
+              >
+                <circle cx="12" cy="12" r="10" opacity="0.25" />
+                <path d="M12 2a10 10 0 0 1 10 10" />
+              </svg>
+              Saving...
+            </>
+          ) : saveStatus === 'saved' ? (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Saved!
+            </>
+          ) : saveStatus === 'error' ? (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
+              Error
+            </>
+          ) : (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                <path d="M17 21v-8H7v8M7 3v5h8" />
+              </svg>
+              Save Itinerary
+            </>
+          )}
         </button>
       </div>
     </header>

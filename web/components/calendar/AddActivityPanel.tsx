@@ -7,12 +7,13 @@ interface AddActivityPanelProps {
   startTime: string;
   destinationName: string;
   position: { x: number; y: number };
+  isGenerating?: boolean;
   onAdd: (activity: {
     title: string;
     category: ActivityCategory;
     durationMinutes: number;
   }) => void;
-  onGenerateWithAI: () => void;
+  onGenerateWithAI: (category: ActivityCategory, durationMinutes: number) => void;
   onClose: () => void;
 }
 
@@ -44,6 +45,7 @@ export default function AddActivityPanel({
   startTime,
   destinationName,
   position,
+  isGenerating = false,
   onAdd,
   onGenerateWithAI,
   onClose,
@@ -91,16 +93,41 @@ export default function AddActivityPanel({
   };
 
   // Calculate panel position (ensure it's visible on screen)
+  const panelHeight = 380; // Approximate height of the panel
+  const panelWidth = 320;
+  const padding = 16;
+
+  // Adjust position if panel would go off-screen
+  let adjustedTop = position.y;
+  let adjustedLeft = position.x;
+
+  // Check if panel would go below viewport
+  if (typeof window !== 'undefined') {
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+
+    // If panel would extend below viewport, position it above the click point
+    if (position.y + panelHeight > viewportHeight - padding) {
+      adjustedTop = Math.max(padding, viewportHeight - panelHeight - padding);
+    }
+
+    // If panel would extend beyond right edge, shift it left
+    if (position.x + panelWidth > viewportWidth - padding) {
+      adjustedLeft = Math.max(padding, viewportWidth - panelWidth - padding);
+    }
+  }
+
   const panelStyle: React.CSSProperties = {
     position: 'fixed',
-    top: position.y,
-    left: position.x,
+    top: adjustedTop,
+    left: adjustedLeft,
     zIndex: 1000,
     backgroundColor: DESIGN.colors.bgCard,
     borderRadius: DESIGN.radius.lg,
     boxShadow: DESIGN.shadows.xl,
-    width: '320px',
-    overflow: 'hidden',
+    width: `${panelWidth}px`,
+    maxHeight: '90vh',
+    overflow: 'auto',
   };
 
   return (
@@ -225,25 +252,47 @@ export default function AddActivityPanel({
           </button>
           <button
             type="button"
-            onClick={onGenerateWithAI}
+            onClick={() => onGenerateWithAI(category, duration)}
+            disabled={isGenerating}
             style={{
               padding: '10px 16px',
               border: `1px solid ${DESIGN.colors.accent}`,
               borderRadius: DESIGN.radius.md,
-              backgroundColor: 'transparent',
+              backgroundColor: isGenerating ? `${DESIGN.colors.accent}10` : 'transparent',
               color: DESIGN.colors.accent,
               fontSize: '14px',
               fontWeight: 500,
-              cursor: 'pointer',
+              cursor: isGenerating ? 'wait' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
+              opacity: isGenerating ? 0.7 : 1,
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-            </svg>
-            AI
+            {isGenerating ? (
+              <>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  style={{ animation: 'spin 1s linear infinite' }}
+                >
+                  <circle cx="12" cy="12" r="10" opacity="0.25" />
+                  <path d="M12 2a10 10 0 0 1 10 10" />
+                </svg>
+                ...
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+                </svg>
+                AI
+              </>
+            )}
           </button>
         </div>
       </form>

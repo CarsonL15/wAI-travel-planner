@@ -98,6 +98,61 @@ export async function getItinerary(id: string) {
   return fetchWithAuth(`/itineraries/${id}`);
 }
 
+export interface ItinerarySummary {
+  id: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+  updatedAt?: string;
+  daysCount: number;
+}
+
+export async function getItineraries(): Promise<{ itineraries: ItinerarySummary[] }> {
+  return fetchWithAuth('/itineraries');
+}
+
+export async function updateItinerary(id: string, data: { days: any[] }) {
+  return fetchWithAuth(`/itineraries/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export interface RegenerateActivityRequest {
+  destination: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  category?: string;
+  // ALL activities from the ENTIRE trip (not just the day)
+  allTripActivities?: Array<{ title: string; location?: string }>;
+  preferences?: {
+    interests?: string[];
+    budget?: string;
+    pace?: string;
+  };
+}
+
+export interface RegeneratedActivity {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  location: string;
+  estimatedCost: string;
+  startTime: string;
+  endTime: string;
+  isCustom: boolean;
+}
+
+export async function regenerateActivity(data: RegenerateActivityRequest): Promise<RegeneratedActivity> {
+  return fetchWithAuth('/activities/regenerate', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 // =============================================================================
 // User API
 // =============================================================================

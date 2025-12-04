@@ -2,22 +2,45 @@ import { useState, useEffect, useCallback, useReducer } from 'react';
 import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { DESIGN, CALENDAR } from '../../lib/constants';
 import type { CalendarDay, CalendarActivity, CalendarState, HistoryEntry, ActivityCategory, CostLevel } from '../../lib/types';
+import { regenerateActivity } from '../../lib/api';
 import CalendarHeader from './CalendarHeader';
 import TimeColumn from './TimeColumn';
 import DayColumn from './DayColumn';
 import ActivityEditor from './ActivityEditor';
 import AddActivityPanel from './AddActivityPanel';
 
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 interface CalendarEditorProps {
   tripName: string;
   initialDays: CalendarDay[];
+  saveStatus?: SaveStatus;
   onSave: (days: CalendarDay[]) => void;
   onBack: () => void;
 }
 
 // Helper functions
+// Convert time string to minutes from midnight
+// Handles both "09:00" (24h) and "9:00 AM" / "1:00 PM" (12h) formats
 function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(':').map(Number);
+  // Check if it's 12-hour format with AM/PM
+  const isPM = time.toLowerCase().includes('pm');
+  const isAM = time.toLowerCase().includes('am');
+
+  // Remove AM/PM and trim
+  const cleanTime = time.replace(/\s*(am|pm)\s*/gi, '').trim();
+  const [hoursStr, minutesStr] = cleanTime.split(':');
+
+  let hours = parseInt(hoursStr, 10);
+  const minutes = parseInt(minutesStr, 10) || 0;
+
+  // Convert 12-hour to 24-hour if needed
+  if (isPM && hours !== 12) {
+    hours += 12;
+  } else if (isAM && hours === 12) {
+    hours = 0;
+  }
+
   return hours * 60 + minutes;
 }
 
@@ -263,7 +286,7 @@ function calendarReducer(state: CalendarState, action: CalendarAction): Calendar
   }
 }
 
-export default function CalendarEditor({ tripName, initialDays, onSave, onBack }: CalendarEditorProps) {
+export default function CalendarEditor({ tripName, initialDays, saveStatus = 'idle', onSave, onBack }: CalendarEditorProps) {
   // Use lazy initialization for useReducer to ensure we use the latest initialDays
   const [state, dispatch] = useReducer(calendarReducer, initialDays, (days) => ({
     days,
@@ -280,6 +303,22 @@ export default function CalendarEditor({ tripName, initialDays, onSave, onBack }
     position: { x: number; y: number };
   } | null>(null);
   const [resizing, setResizing] = useState<{ activityId: string; edge: 'top' | 'bottom'; initialY: number; initialTime: string } | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isGeneratingNew, setIsGeneratingNew] = useState(false);
+  const [regenerateError, setRegenerateError] = useState<string | null>(null);
+
+  // Sync state when initialDays changes (e.g., when itinerary finishes loading)
+  useEffect(() => {
+    // If initialDays has activities and state doesn't match, update state
+    const initialHasActivities = initialDays.some(d => d.activities.length > 0);
+    const stateHasActivities = state.days.some(d => d.activities.length > 0);
+
+    if (initialDays.length > 0 && initialHasActivities && !stateHasActivities) {
+      dispatch({ type: 'SET_DAYS', days: initialDays });
+    } else if (initialDays.length !== state.days.length && initialDays.length > 0) {
+      dispatch({ type: 'SET_DAYS', days: initialDays });
+    }
+  }, [initialDays]);
 
   // Sensor for drag-and-drop
   const sensors = useSensors(
@@ -521,10 +560,114 @@ export default function CalendarEditor({ tripName, initialDays, onSave, onBack }
     dispatch({ type: 'UPDATE_ACTIVITY', activity });
   }, []);
 
-  const handleRegenerateWithAI = useCallback((activity: CalendarActivity) => {
-    // TODO: Implement AI regeneration
-    console.log('Regenerate with AI:', activity);
-  }, []);
+  const handleRegenerateWithAI = useCallback(async (activity: CalendarActivity) => {
+    console.log('[Calendar] Regenerate with AI clicked for activity:', activity);
+    setIsRegenerating(true);
+    setRegenerateError(null);
+
+    try {
+      const day = state.days[activity.dayIndex];
+      console.log('[Calendar] Day info:', { date: day.date, destination: day.destinationName });
+
+      // Collect ALL activities from the ENTIRE trip INCLUDING the one being regenerated
+      // (we want to forbid the AI from suggesting the same thing again)
+      const allTripActivities = state.days.flatMap((d) =>
+        d.activities.map((a) => ({
+          title: a.title,
+          location: a.location,
+        }))
+      );
+      console.log('[Calendar] All trip activities to exclude (including current):', allTripActivities);
+
+      console.log('[Calendar] Calling regenerateActivity API...');
+      const result = await regenerateActivity({
+        destination: day.destinationName,
+        date: day.date,
+        startTime: activity.startTime,
+        endTime: activity.endTime,
+        category: activity.category,
+        allTripActivities,
+      });
+      console.log('[Calendar] API result:', result);
+
+      // Update the activity with the regenerated data
+      const updatedActivity: CalendarActivity = {
+        ...activity,
+        id: result.id || activity.id,
+        title: result.title,
+        description: result.description,
+        category: result.category as ActivityCategory,
+        location: result.location,
+        estimatedCost: result.estimatedCost as CostLevel,
+        startTime: result.startTime || activity.startTime,
+        endTime: result.endTime || activity.endTime,
+        isCustom: false,
+      };
+
+      dispatch({ type: 'UPDATE_ACTIVITY', activity: updatedActivity });
+      setEditingActivity(updatedActivity);
+    } catch (err) {
+      console.error('Failed to regenerate activity:', err);
+      setRegenerateError(err instanceof Error ? err.message : 'Failed to regenerate activity');
+    } finally {
+      setIsRegenerating(false);
+    }
+  }, [state.days]);
+
+  const handleGenerateNewWithAI = useCallback(async (category: ActivityCategory, durationMinutes: number) => {
+    if (!addPanelInfo) return;
+
+    setIsGeneratingNew(true);
+    setRegenerateError(null);
+
+    try {
+      const day = state.days[addPanelInfo.dayIndex];
+
+      // Collect ALL activities from the ENTIRE trip
+      const allTripActivities = state.days.flatMap((d) =>
+        d.activities.map((a) => ({
+          title: a.title,
+          location: a.location,
+        }))
+      );
+
+      // Calculate end time based on duration
+      const startMinutes = timeToMinutes(addPanelInfo.startTime);
+      const endMinutes = Math.min(startMinutes + durationMinutes, CALENDAR.END_HOUR * 60);
+      const endTime = minutesToTime(endMinutes);
+
+      const result = await regenerateActivity({
+        destination: day.destinationName,
+        date: day.date,
+        startTime: addPanelInfo.startTime,
+        endTime: endTime,
+        category: category,
+        allTripActivities,
+      });
+
+      // Create a new activity with the AI-generated data
+      const newActivity: CalendarActivity = {
+        id: result.id || `activity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        dayIndex: addPanelInfo.dayIndex,
+        startTime: result.startTime || addPanelInfo.startTime,
+        endTime: result.endTime || endTime,
+        title: result.title,
+        description: result.description,
+        category: result.category as ActivityCategory,
+        location: result.location,
+        estimatedCost: result.estimatedCost as CostLevel,
+        isCustom: false,
+      };
+
+      dispatch({ type: 'ADD_ACTIVITY', activity: newActivity });
+      setAddPanelInfo(null);
+    } catch (err) {
+      console.error('Failed to generate activity:', err);
+      setRegenerateError(err instanceof Error ? err.message : 'Failed to generate activity');
+    } finally {
+      setIsGeneratingNew(false);
+    }
+  }, [addPanelInfo, state.days]);
 
   const handleSave = useCallback(() => {
     onSave(state.days);
@@ -551,6 +694,7 @@ export default function CalendarEditor({ tripName, initialDays, onSave, onBack }
         currentWeekStart={state.currentWeekStart}
         canUndo={state.historyIndex > 0}
         canRedo={state.historyIndex < state.history.length - 1}
+        saveStatus={saveStatus}
         onPrevWeek={() =>
           dispatch({ type: 'SET_WEEK_START', weekStart: Math.max(0, state.currentWeekStart - CALENDAR.MAX_DAYS_VISIBLE) })
         }
@@ -598,6 +742,7 @@ export default function CalendarEditor({ tripName, initialDays, onSave, onBack }
       {editingActivity && (
         <ActivityEditor
           activity={editingActivity}
+          isRegenerating={isRegenerating}
           onSave={handleSaveActivity}
           onDelete={handleDeleteActivity}
           onClose={() => setEditingActivity(null)}
@@ -611,12 +756,9 @@ export default function CalendarEditor({ tripName, initialDays, onSave, onBack }
           startTime={addPanelInfo.startTime}
           destinationName={state.days[addPanelInfo.dayIndex]?.destinationName || ''}
           position={addPanelInfo.position}
+          isGenerating={isGeneratingNew}
           onAdd={handleCreateActivity}
-          onGenerateWithAI={() => {
-            // TODO: Implement AI generation
-            console.log('Generate with AI for', addPanelInfo);
-            setAddPanelInfo(null);
-          }}
+          onGenerateWithAI={handleGenerateNewWithAI}
           onClose={() => setAddPanelInfo(null)}
         />
       )}

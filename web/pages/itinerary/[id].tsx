@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { getItinerary, generateQuickItinerary } from '../../lib/api';
+import { getItinerary, generateQuickItinerary, updateItinerary } from '../../lib/api';
 import { isAuthenticated } from '../../lib/auth';
 import { DESIGN } from '../../lib/constants';
 import type { TripDestination, BudgetLevel, CalendarDay, CalendarActivity, ActivityCategory, CostLevel } from '../../lib/types';
 import CalendarEditor from '../../components/calendar/CalendarEditor';
+import GeneratingLoader from '../../components/GeneratingLoader';
 
 interface PendingTrip {
   name: string;
@@ -110,7 +111,9 @@ export default function ItineraryDetail() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tripName, setTripName] = useState<string>('Your Trip');
+  const [destinationNames, setDestinationNames] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const router = useRouter();
   const { id } = router.query;
 
@@ -121,7 +124,7 @@ export default function ItineraryDetail() {
     return itinerary.days.map((day, dayIndex) => ({
       date: day.date,
       destinationName: itinerary.rationalePerDay?.[dayIndex]?.split(' - ')[0] || itinerary.destination.split(' → ')[0] || 'Destination',
-      activities: day.blocks.map((block, blockIndex) => ({
+      activities: (day.blocks || []).map((block, blockIndex) => ({
         id: `day-${dayIndex}-block-${blockIndex}`,
         dayIndex,
         startTime: block.start,
@@ -159,7 +162,7 @@ export default function ItineraryDetail() {
   }
 
   // Handle save from calendar editor
-  const handleCalendarSave = (days: CalendarDay[]) => {
+  const handleCalendarSave = async (days: CalendarDay[]) => {
     // Convert back to Itinerary format and update state
     if (!itinerary) return;
 
@@ -178,9 +181,28 @@ export default function ItineraryDetail() {
       })),
     }));
 
+    // Update local state immediately
     setItinerary({ ...itinerary, days: updatedDays });
-    // TODO: Save to backend
-    console.log('Saving itinerary...', updatedDays);
+
+    // Save to backend if we have a real itinerary ID (not preview)
+    if (id && id !== 'preview') {
+      setSaveStatus('saving');
+      try {
+        await updateItinerary(itinerary.id, { days: updatedDays });
+        setSaveStatus('saved');
+        // Reset to idle after 2 seconds
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch (err) {
+        console.error('Failed to save itinerary:', err);
+        setSaveStatus('error');
+        // Reset to idle after 3 seconds
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      }
+    } else {
+      // Preview mode - just show saved without actually saving
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }
   };
 
   function mapActivityCategoryToBlock(category: ActivityCategory): Block['category'] {
@@ -250,6 +272,7 @@ export default function ItineraryDetail() {
     try {
       const pendingTrip: PendingTrip = JSON.parse(pendingTripData);
       setTripName(pendingTrip.name);
+      setDestinationNames(pendingTrip.destinations.map(d => d.name));
       setGenerating(true);
       setLoading(false);
 
@@ -364,7 +387,11 @@ export default function ItineraryDetail() {
     }
   };
 
-  if (loading || generating) {
+  if (generating) {
+    return <GeneratingLoader tripName={tripName} destinations={destinationNames} />;
+  }
+
+  if (loading) {
     return (
       <div
         style={{
@@ -407,26 +434,7 @@ export default function ItineraryDetail() {
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             />
           </svg>
-          {generating ? (
-            <>
-              <h2
-                style={{
-                  marginTop: '1.5rem',
-                  fontSize: '1.25rem',
-                  fontWeight: 500,
-                  color: DESIGN.colors.textPrimary,
-                }}
-              >
-                Generating Your Itinerary
-              </h2>
-              <p style={{ marginTop: '0.5rem', color: DESIGN.colors.textSecondary, lineHeight: 1.5 }}>
-                Our AI is crafting a personalized travel plan for <strong>{tripName}</strong>.
-                This may take a minute...
-              </p>
-            </>
-          ) : (
-            <p style={{ marginTop: '1rem', color: DESIGN.colors.textSecondary }}>Loading itinerary...</p>
-          )}
+          <p style={{ marginTop: '1rem', color: DESIGN.colors.textSecondary }}>Loading itinerary...</p>
         </div>
       </div>
     );
@@ -525,8 +533,9 @@ export default function ItineraryDetail() {
       <CalendarEditor
         tripName={tripName || itinerary.destination}
         initialDays={calendarDays}
+        saveStatus={saveStatus}
         onSave={handleCalendarSave}
-        onBack={() => setViewMode('list')}
+        onBack={() => router.push('/planner')}
       />
     );
   }

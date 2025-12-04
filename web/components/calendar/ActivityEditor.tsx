@@ -4,6 +4,7 @@ import type { CalendarActivity, ActivityCategory, CostLevel } from '../../lib/ty
 
 interface ActivityEditorProps {
   activity: CalendarActivity;
+  isRegenerating?: boolean;
   onSave: (activity: CalendarActivity) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
@@ -30,6 +31,7 @@ const COST_LEVELS: { value: CostLevel; label: string }[] = [
 
 export default function ActivityEditor({
   activity,
+  isRegenerating = false,
   onSave,
   onDelete,
   onClose,
@@ -51,10 +53,8 @@ export default function ActivityEditor({
   };
 
   const handleDelete = () => {
-    if (confirm('Delete this activity?')) {
-      onDelete(activity.id);
-      onClose();
-    }
+    onDelete(activity.id);
+    onClose();
   };
 
   return (
@@ -287,30 +287,50 @@ export default function ActivityEditor({
           </div>
 
           {/* AI Regenerate button */}
-          {!editedActivity.isCustom && (
-            <button
-              onClick={() => onRegenerateWithAI(editedActivity)}
-              style={{
-                padding: '10px 16px',
-                border: `1px solid ${DESIGN.colors.accent}`,
-                borderRadius: DESIGN.radius.md,
-                backgroundColor: 'transparent',
-                color: DESIGN.colors.accent,
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-              </svg>
-              Regenerate with AI
-            </button>
-          )}
+          <button
+            onClick={() => onRegenerateWithAI(editedActivity)}
+            disabled={isRegenerating}
+            style={{
+              padding: '10px 16px',
+              border: `1px solid ${DESIGN.colors.accent}`,
+              borderRadius: DESIGN.radius.md,
+              backgroundColor: isRegenerating ? `${DESIGN.colors.accent}10` : 'transparent',
+              color: DESIGN.colors.accent,
+              fontSize: '14px',
+              fontWeight: 500,
+              cursor: isRegenerating ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              opacity: isRegenerating ? 0.7 : 1,
+            }}
+          >
+            {isRegenerating ? (
+              <>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  style={{ animation: 'spin 1s linear infinite' }}
+                >
+                  <circle cx="12" cy="12" r="10" opacity="0.25" />
+                  <path d="M12 2a10 10 0 0 1 10 10" />
+                </svg>
+                Generating...
+              </>
+            ) : (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+                </svg>
+                Regenerate with AI
+              </>
+            )}
+          </button>
         </div>
 
         {/* Footer */}

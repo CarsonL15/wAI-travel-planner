@@ -478,6 +478,31 @@ export default function Home() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             {authenticated ? (
               <>
+                <a
+                  href="/trips"
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: 'transparent',
+                    border: `1px solid ${DESIGN.colors.accent}`,
+                    borderRadius: DESIGN.radius.md,
+                    color: DESIGN.colors.accent,
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    textDecoration: 'none',
+                    transition: `all ${DESIGN.transitions.fast}`,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = DESIGN.colors.accent;
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = DESIGN.colors.accent;
+                  }}
+                >
+                  My Trips
+                </a>
                 <span
                   style={{
                     color: DESIGN.colors.textSecondary,
