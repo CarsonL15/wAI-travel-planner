@@ -100,7 +100,10 @@ export class WaiTravelStack extends cdk.Stack {
     // AWS Marketplace access for Bedrock models
     generateItineraryFn.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ['aws-marketplace:ViewSubscriptions'],
+        actions: [
+          'aws-marketplace:ViewSubscriptions',
+          'aws-marketplace:Subscribe'
+        ],
         resources: ['*'],
       })
     );

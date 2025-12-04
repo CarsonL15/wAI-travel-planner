@@ -185,6 +185,7 @@
       },
       {
        "Action": [
+        "aws-marketplace:Subscribe",
         "aws-marketplace:ViewSubscriptions",
         "bedrock:InvokeModel"
        ],
@@ -1550,7 +1551,7 @@
      "cdk-hnb659fds-assets-564103198943-us-east-1"
     ],
     "SourceObjectKeys": [
-     "645d7f5db9f41751c52ae2188abee18eec0cb453006008ac02ac3cbe2a25a5ab.zip"
+     "608c21c249fe9a06fbf27ebc59251c1cc67ba58bc3163fec78366558b15c5cbc.zip"
     ],
     "DestinationBucketName": {
      "Ref": "Website32962D0B"

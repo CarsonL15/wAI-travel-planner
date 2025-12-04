@@ -11,7 +11,7 @@ cd ..
 # Step 2: Deploy with CDK
 echo "☁️  Deploying to AWS..."
 cd infrastructure
-npm run cdk deploy
+npx cdk deploy --require-approval never
 cd ..
 
 echo "✅ Deployment complete!"
