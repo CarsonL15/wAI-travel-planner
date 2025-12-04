@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Auth } from 'aws-amplify';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { getItinerary } from '../../lib/api';
+import { isAuthenticated } from '../../lib/auth';
 
 interface Block {
   start: string;
@@ -44,16 +45,26 @@ export default function ItineraryDetail() {
   }, [id]);
 
   const checkAuth = async () => {
-    try {
-      await Auth.currentAuthenticatedUser();
-    } catch (error) {
-      router.push('/');
+    const authenticated = await isAuthenticated();
+    if (!authenticated) {
+      router.push('/login');
     }
   };
 
   const loadItinerary = async (itineraryId: string) => {
-    // TODO: Load itinerary from GraphQL
-    // Mock data for now
+    try {
+      const data = await getItinerary(itineraryId);
+      setItinerary(data);
+    } catch (error) {
+      console.error('Error loading itinerary:', error);
+      alert('Failed to load itinerary');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Keep this mock as fallback if needed
+  const loadMockItinerary = async (itineraryId: string) => {
     setItinerary({
       id: itineraryId,
       destination: 'Tokyo, Japan',

@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 html, body, #__next {
   padding: 0;
   margin: 0;

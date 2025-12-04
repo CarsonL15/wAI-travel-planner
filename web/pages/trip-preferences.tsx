@@ -1,240 +1,378 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
-import Head from 'next/head';
+import { generateItinerary } from '../lib/api';
+import { isAuthenticated, getCurrentUser, signOut } from '../lib/auth';
 
-export default function TripPreferences() {
+export default function TripPlanner() {
   const router = useRouter();
   const { destination } = router.query;
+  const [authenticated, setAuthenticated] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [tripName, setTripName] = useState('');
+  const [loading, setLoading] = useState(false);
   
-  const [prefs, setPrefs] = useState({
-    interests: '',
-    placesWanted: '',
-    attractionType: [] as string[],
-    budget: '',
-    people: 1,
-    duration: 3,
-    tripPace: [] as string[],
-    travelStyle: '',
-  });
+  // Essential trip details
+  const [duration, setDuration] = useState(3);
+  const [budget, setBudget] = useState('');
+  const [people, setPeople] = useState(1);
+  const [destinationInput, setDestinationInput] = useState('');
+  const [startDate, setStartDate] = useState('');
 
-  const paceOptions = ['Relaxed', 'Moderate', 'Fast-paced', 'Busy'];
-  const attractionOptions = ['Popular', 'Hidden gems', 'Cultural', 'Nature', 'Mixed'];
+  useEffect(() => {
+    checkAuth();
+  }, []);
 
-  const toggleAttraction = (option: string) => {
-    setPrefs((prev) => {
-      const has = prev.attractionType.includes(option);
-      return {
-        ...prev,
-        attractionType: has ? prev.attractionType.filter((a) => a !== option) : [...prev.attractionType, option],
-      };
-    });
+  const checkAuth = async () => {
+    const isAuth = await isAuthenticated();
+    if (!isAuth) {
+      router.push('/');
+      return;
+    }
+    setAuthenticated(isAuth);
+    try {
+      const user = await getCurrentUser();
+      setUserEmail(user.email);
+    } catch (error) {
+      console.error('Error getting user:', error);
+    }
   };
 
-  const togglePace = (option: string) => {
-    setPrefs((prev) => {
-      const has = prev.tripPace.includes(option);
-      return {
-        ...prev,
-        tripPace: has ? prev.tripPace.filter((p) => p !== option) : [...prev.tripPace, option],
-      };
-    });
+  useEffect(() => {
+    if (destination) {
+      setDestinationInput(destination as string);
+      setTripName(`Trip to ${destination}`);
+    }
+  }, [destination]);
+
+  const handleLogout = () => {
+    signOut();
+    setAuthenticated(false);
+    setUserEmail(null);
+    router.push('/');
   };
 
-  const save = () => {
-    const tripData = {
-      ...prefs,
-      tripName,
-      destination: destination || '',
-    };
-    console.log('Trip Data:', tripData);
-    // Navigate to itinerary editor
-    router.push('/itinerary-editor');
+  const generateTrip = async () => {
+    if (!destinationInput.trim()) {
+      alert('Please enter a destination');
+      return;
+    }
+
+    if (!budget) {
+      alert('Please select a budget');
+      return;
+    }
+
+    if (!startDate) {
+      alert('Please select a start date');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log('Generating itinerary with data:', {
+        destination: destinationInput,
+        duration: duration,
+        budget: budget,
+        startDate: startDate,
+        interests: [],
+      });
+
+      const result = await generateItinerary({
+        destination: destinationInput,
+        duration: duration,
+        budget: budget,
+        startDate: startDate,
+        interests: [],
+      });
+
+      console.log('Generated itinerary result:', result);
+      router.push(`/itinerary/${result.id}`);
+    } catch (error: any) {
+      console.error('Full error generating itinerary:', error);
+      alert(`Failed to generate itinerary: ${error.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const durationPercent = Math.round(((prefs.duration - 1) / (14 - 1)) * 100);
+  const durationPercent = Math.round(((duration - 1) / (14 - 1)) * 100);
 
   return (
-    <>
-      <Head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </Head>
-
+    <div 
+      className="min-h-screen relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        fontFamily: 'Poppins, sans-serif'
+      }}
+    >
+      {/* Animated background elements */}
       <div
         style={{
-          minHeight: '100vh',
-          padding: '2rem',
-          maxWidth: 900,
-          margin: '0 auto',
-          backgroundColor: '#F3E8FF', // light purple background
-          fontFamily: "'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial",
-          color: '#2b2340',
+          position: 'absolute',
+          top: '-10%',
+          right: '-5%',
+          width: '40%',
+          height: '40%',
+          borderRadius: '50%',
+          background: 'rgba(255, 255, 255, 0.1)',
+          filter: 'blur(80px)',
+          pointerEvents: 'none',
         }}
-      >
-        <img
-          src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1600&auto=format&fit=crop&s=0f2b0b5f0c3a9b8e5c7b6f3a1b2c4d5e"
-          alt="Mountains and forest"
-          style={{ width: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 8, marginBottom: 16 }}
-        />
+      />
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '-10%',
+          left: '-5%',
+          width: '40%',
+          height: '40%',
+          borderRadius: '50%',
+          background: 'rgba(255, 255, 255, 0.1)',
+          filter: 'blur(80px)',
+          pointerEvents: 'none',
+        }}
+      />
 
-        <h1 style={{ color: '#4B0082', marginBottom: 8 }}>
-          {destination ? `Your trip to ${destination}` : 'Trip Preferences'}
-        </h1>
-
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', fontWeight: 700, marginBottom: 6 }}>
-            Give your trip a name!
-            <input
-              type="text"
-              value={tripName}
-              onChange={(e) => setTripName(e.target.value)}
-              placeholder="e.g., Summer Adventure 2025"
+      {/* Header with auth status */}
+      <div className="relative z-10 p-6 flex justify-between items-center">
+        <button
+          onClick={() => router.push('/')}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-white transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl backdrop-blur-sm"
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+            border: '2px solid rgba(255, 255, 255, 0.3)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(251, 191, 36, 0.9)';
+            e.currentTarget.style.borderColor = 'rgba(251, 191, 36, 1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+          }}
+        >
+          <span className="text-xl">←</span>
+          <span>Back to Map</span>
+        </button>
+        {authenticated && userEmail && (
+          <div className="flex items-center gap-4">
+            <span className="text-white text-sm font-medium">
+              {userEmail}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-white transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl backdrop-blur-sm"
               style={{
-                width: '100%',
-                padding: '0.5rem',
-                marginTop: '0.5rem',
-                borderRadius: 6,
-                border: '1px solid #ddd',
-                fontSize: '1rem'
+                backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
               }}
-            />
-          </label>
-        </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: 700, marginBottom: 6 }}>Duration (days): {prefs.duration}</label>
-          <input
-            type="range"
-            min={1}
-            max={14}
-            value={prefs.duration}
-            onChange={(e) => setPrefs({ ...prefs, duration: parseInt(e.target.value, 10) })}
-            style={{ width: 320, maxWidth: '100%', ['--value' as any]: `${durationPercent}%` }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ fontWeight: 700 }}>
-            How many people:
-            <input
-              type="number"
-              min={1}
-              value={prefs.people}
-              onChange={(e) => {
-                const v = parseInt(e.target.value || '1', 10);
-                setPrefs({ ...prefs, people: Number.isNaN(v) ? 1 : v });
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(251, 191, 36, 0.9)';
+                e.currentTarget.style.borderColor = 'rgba(251, 191, 36, 1)';
               }}
-              style={{ marginLeft: 8, width: 80 }}
-            />
-          </label>
-        </div>
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+              }}
+            >
+              Sign Out
+            </button>
+          </div>
+        )}
+      </div>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ fontWeight: 700 }}>Interests: <input placeholder="e.g. cafes, museums" value={prefs.interests} onChange={(e) => setPrefs({...prefs, interests: e.target.value})} /></label>
-        </div>
+      {/* Main content */}
+      <main className="relative z-10 max-w-2xl mx-auto px-6 py-8">
+        <div 
+          className="rounded-3xl shadow-2xl p-8 backdrop-blur-sm"
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          }}
+        >
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 
+              className="text-4xl font-bold mb-2"
+              style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              ✈️ Plan Your Trip
+            </h1>
+            <p className="text-gray-600">
+              Tell us about your journey and we'll create the perfect itinerary
+            </p>
+          </div>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: 6, fontWeight: 700 }}>Must-see attractions (optional)</label>
-          <textarea
-            placeholder="e.g. Pantheon, Colosseum, Sistine Chapel. Leave blank if none."
-            value={prefs.placesWanted}
-            onChange={(e) => setPrefs({ ...prefs, placesWanted: e.target.value })}
-            rows={3}
-            style={{ width: '100%', padding: '0.5rem', borderRadius: 6, border: '1px solid #ddd' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
-            <legend style={{ fontWeight: 'bold', marginBottom: 6 }}>Preferred attraction type (select one or more)</legend>
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              {attractionOptions.map((opt) => (
-                <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <input
-                    type="checkbox"
-                    checked={prefs.attractionType.includes(opt)}
-                    onChange={() => toggleAttraction(opt)}
-                  />
-                  {opt}
-                </label>
-              ))}
+          <div className="space-y-6">
+            {/* Destination */}
+            <div>
+              <label className="block text-sm font-semibold mb-2" style={{ color: '#581C87' }}>
+                Where are you going? ✨
+              </label>
+              <input
+                type="text"
+                value={destinationInput}
+                onChange={(e) => setDestinationInput(e.target.value)}
+                placeholder="e.g., Paris, Tokyo, New York..."
+                className="w-full px-4 py-3 rounded-xl border-2 focus:outline-none transition-all duration-200"
+                style={{
+                  fontSize: '16px',
+                  borderColor: destinationInput ? '#9333EA' : '#E9D5FF',
+                  backgroundColor: '#FAFAFA'
+                }}
+              />
             </div>
-          </fieldset>
-        </div>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ fontWeight: 700 }}>Budget:
-            <select value={prefs.budget} onChange={(e) => setPrefs({...prefs, budget: e.target.value})} style={{ marginLeft: 8 }}>
-              <option value="">Select</option>
-              <option>Under $500</option>
-              <option>$500 - $1,000</option>
-              <option>$1,000 - $2,500</option>
-              <option>Over $2,500</option>
-            </select>
-          </label>
-        </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
-            <legend style={{ fontWeight: 'bold', marginBottom: 6 }}>Trip pace (select one or more):</legend>
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              {paceOptions.map((opt) => (
-                <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <input
-                    type="checkbox"
-                    checked={prefs.tripPace.includes(opt)}
-                    onChange={() => togglePace(opt)}
-                  />
-                  {opt}
-                </label>
-              ))}
+            {/* Start Date */}
+            <div>
+              <label className="block text-sm font-semibold mb-2" style={{ color: '#581C87' }}>
+                When do you want to go? 📅
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full px-4 py-3 rounded-xl border-2 focus:outline-none transition-all duration-200"
+                style={{
+                  fontSize: '16px',
+                  borderColor: startDate ? '#9333EA' : '#E9D5FF',
+                  backgroundColor: '#FAFAFA'
+                }}
+              />
             </div>
-          </fieldset>
-        </div>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ fontWeight: 700 }}>Travel Style:
-            <select value={prefs.travelStyle} onChange={(e) => setPrefs({...prefs, travelStyle: e.target.value})} style={{ marginLeft: 8 }}>
-              <option value="">Select</option>
-              <option>Budget</option>
-              <option>Mid-range</option>
-              <option>Luxury</option>
-              <option>Adventure</option>
-            </select>
-          </label>
-        </div>
+            {/* Duration */}
+            <div>
+              <label className="block text-sm font-semibold mb-3" style={{ color: '#581C87' }}>
+                How long is your trip? ⏱️
+              </label>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-2xl font-bold" style={{ color: '#9333EA' }}>
+                  {duration} {duration === 1 ? 'day' : 'days'}
+                </span>
+                <span className="text-sm text-gray-500">
+                  1-14 days
+                </span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="14"
+                value={duration}
+                onChange={(e) => setDuration(parseInt(e.target.value))}
+                className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, #9333EA 0%, #9333EA ${durationPercent}%, #E9D5FF ${durationPercent}%, #E9D5FF 100%)`
+                }}
+              />
+            </div>
 
-        <div style={{ marginTop: 8, marginBottom: 12 }}>
+            {/* Budget */}
+            <div>
+              <label className="block text-sm font-semibold mb-2" style={{ color: '#581C87' }}>
+                What's your budget? 💰
+              </label>
+              <select
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border-2 focus:outline-none transition-all duration-200"
+                style={{
+                  fontSize: '16px',
+                  borderColor: budget ? '#9333EA' : '#E9D5FF',
+                  backgroundColor: '#FAFAFA'
+                }}
+              >
+                <option value="">Select your budget level...</option>
+                <option value="budget">💵 Budget-Friendly</option>
+                <option value="moderate">💳 Moderate</option>
+                <option value="comfortable">💎 Comfortable</option>
+                <option value="luxury">👑 Luxury</option>
+              </select>
+            </div>
+
+            {/* Number of Travelers */}
+            <div>
+              <label className="block text-sm font-semibold mb-2" style={{ color: '#581C87' }}>
+                How many travelers? 👥
+              </label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => setPeople(num)}
+                    className="flex-1 py-3 rounded-xl font-semibold transition-all duration-200"
+                    style={{
+                      backgroundColor: people === num ? '#9333EA' : '#F3E8FF',
+                      color: people === num ? 'white' : '#581C87',
+                      border: people === num ? 'none' : '2px solid #E9D5FF'
+                    }}
+                  >
+                    {num}
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  min="5"
+                  max="20"
+                  value={people > 4 ? people : ''}
+                  onChange={(e) => setPeople(parseInt(e.target.value) || 5)}
+                  placeholder="5+"
+                  className="flex-1 py-3 px-4 rounded-xl font-semibold text-center border-2 focus:outline-none"
+                  style={{
+                    fontSize: '16px',
+                    borderColor: people > 4 ? '#9333EA' : '#E9D5FF',
+                    backgroundColor: people > 4 ? '#9333EA' : '#F3E8FF',
+                    color: people > 4 ? 'white' : '#581C87'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Generate Button */}
           <button
-            onClick={save}
+            onClick={generateTrip}
+            disabled={loading || !budget || !destinationInput || !startDate}
+            className="w-full mt-8 py-4 rounded-xl font-bold text-white text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
             style={{
-              backgroundColor: '#048a97',
-              color: '#ffffff',
-              padding: '16px 24px',
-              border: 'none',
-              borderRadius: 10,
-              fontWeight: 400,
-              fontSize: 20,
-              boxShadow: '0 10px 30px rgba(4,138,151,0.18)',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 12,
+              background: loading || !budget || !destinationInput || !startDate 
+                ? '#D8B4FE' 
+                : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              cursor: loading || !budget || !destinationInput || !startDate ? 'not-allowed' : 'pointer',
+              opacity: loading || !budget || !destinationInput || !startDate ? 0.6 : 1,
             }}
           >
-            <span>Generate Itinerary</span>
-            <span style={{ fontSize: 22 }}>💡</span>
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
+                  <circle 
+                    className="opacity-25" 
+                    cx="12" 
+                    cy="12" 
+                    r="10" 
+                    stroke="currentColor" 
+                    strokeWidth="4" 
+                    fill="none" 
+                  />
+                  <path 
+                    className="opacity-75" 
+                    fill="currentColor" 
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" 
+                  />
+                </svg>
+                Generating Your Perfect Itinerary...
+              </span>
+            ) : (
+              'Generate My Trip'
+            )}
           </button>
         </div>
-
-        <div style={{ marginTop: '1rem' }}>
-          <Link href="/"><button>Back Home</button></Link>
-        </div>
-      </div>
-    </>
+      </main>
+    </div>
   );
 }
