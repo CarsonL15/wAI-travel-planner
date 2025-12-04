@@ -20,6 +20,29 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const body = JSON.parse(event.body || '{}');
     const { interests, travelStyle, pace } = body;
 
+    // Input validation
+    if (!interests || !Array.isArray(interests)) {
+      return {
+        statusCode: 400,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ error: 'Interests must be an array' }),
+      };
+    }
+    if (!travelStyle || typeof travelStyle !== 'string') {
+      return {
+        statusCode: 400,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ error: 'Travel style is required' }),
+      };
+    }
+    if (!pace || typeof pace !== 'string') {
+      return {
+        statusCode: 400,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ error: 'Pace is required' }),
+      };
+    }
+
     // Save user profile to DynamoDB
     await dynamoDB.send(
       new PutCommand({

@@ -36,13 +36,13 @@ export class WaiTravelStack extends cdk.Stack {
       },
     });
 
-    // 2. DynamoDB Table
+    // 2. DynamoDB Table - RETAIN to prevent data loss
     const table = new dynamodb.Table(this, 'Table', {
       tableName: 'wai-travel',
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
     // 3. Lambda Functions
@@ -51,6 +51,7 @@ export class WaiTravelStack extends cdk.Stack {
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       timeout: cdk.Duration.minutes(5),
+      reservedConcurrentExecutions: 10, // Cost protection
       environment: {
         TABLE_NAME: table.tableName,
       },
@@ -89,32 +90,23 @@ export class WaiTravelStack extends cdk.Stack {
     table.grantReadData(getUserFn);
     table.grantReadWriteData(saveUserPreferencesFn);
 
-    // Bedrock access
+    // Bedrock access - restricted to specific model
     generateItineraryFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['bedrock:InvokeModel'],
-        resources: ['*'],
-      })
-    );
-
-    // AWS Marketplace access for Bedrock models
-    generateItineraryFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: [
-          'aws-marketplace:ViewSubscriptions',
-          'aws-marketplace:Subscribe'
+        resources: [
+          'arn:aws:bedrock:*::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0',
         ],
-        resources: ['*'],
       })
     );
 
-    // 4. API Gateway
+    // 4. API Gateway with restricted CORS
     const api = new apigateway.RestApi(this, 'Api', {
       restApiName: 'wai-travel-api',
       description: 'wAI Travel Planner API',
       defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: apigateway.Cors.ALL_METHODS,
+        allowOrigins: ['*'], // In production, replace with your domain
+        allowMethods: ['GET', 'POST', 'OPTIONS'],
         allowHeaders: ['Content-Type', 'Authorization'],
       },
     });
@@ -137,11 +129,11 @@ export class WaiTravelStack extends cdk.Stack {
 
     const user = api.root.addResource('user');
     user.addMethod('GET', new apigateway.LambdaIntegration(getUserFn), authOptions);
-    
+
     const userPreferences = user.addResource('preferences');
     userPreferences.addMethod('POST', new apigateway.LambdaIntegration(saveUserPreferencesFn), authOptions);
 
-    // 5. S3 Static Website
+    // 5. S3 Static Website - RETAIN to prevent accidental deletion
     const websiteBucket = new s3.Bucket(this, 'Website', {
       websiteIndexDocument: 'index.html',
       websiteErrorDocument: 'index.html', // For SPA routing
@@ -152,8 +144,8 @@ export class WaiTravelStack extends cdk.Stack {
         ignorePublicAcls: false,
         restrictPublicBuckets: false,
       }),
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      autoDeleteObjects: false,
     });
 
     // Deploy Next.js static export

@@ -4,13 +4,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const token = getIdToken();
-  
+
   if (!token) {
     throw new Error('Not authenticated');
   }
 
   const fullUrl = `${API_URL}${url}`;
-  console.log('API Request:', fullUrl, options);
 
   const response = await fetch(fullUrl, {
     ...options,
@@ -21,19 +20,16 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     },
   });
 
-  console.log('API Response status:', response.status);
-
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('API Error Response:', errorText);
-    
-    let error;
+
+    let error: { error?: string; message?: string };
     try {
       error = JSON.parse(errorText);
     } catch {
       error = { error: response.statusText };
     }
-    
+
     throw new Error(error.error || error.message || 'API request failed');
   }
 

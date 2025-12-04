@@ -34,6 +34,7 @@ interface Itinerary {
 export default function ItineraryDetail() {
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { id } = router.query;
 
@@ -47,7 +48,7 @@ export default function ItineraryDetail() {
   const checkAuth = async () => {
     const authenticated = await isAuthenticated();
     if (!authenticated) {
-      router.push('/login');
+      router.push('/');
     }
   };
 
@@ -55,89 +56,11 @@ export default function ItineraryDetail() {
     try {
       const data = await getItinerary(itineraryId);
       setItinerary(data);
-    } catch (error) {
-      console.error('Error loading itinerary:', error);
-      alert('Failed to load itinerary');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to load itinerary: ${errorMessage}`);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Keep this mock as fallback if needed
-  const loadMockItinerary = async (itineraryId: string) => {
-    setItinerary({
-      id: itineraryId,
-      destination: 'Tokyo, Japan',
-      startDate: '2024-03-15',
-      endDate: '2024-03-22',
-      days: [
-        {
-          date: '2024-03-15',
-          blocks: [
-            {
-              start: '09:00',
-              end: '11:00',
-              title: 'Senso-ji Temple',
-              category: 'museum',
-              costBand: 'low',
-              notes: 'Traditional Buddhist temple in Asakusa',
-              address: '2 Chome-3-1 Asakusa, Taito City, Tokyo',
-              lat: 35.7148,
-              lon: 139.7967,
-            },
-            {
-              start: '12:00',
-              end: '13:30',
-              title: 'Lunch at Tsukiji Outer Market',
-              category: 'food',
-              costBand: 'med',
-              notes: 'Fresh sushi and local delicacies',
-              address: '4 Chome-16-2 Tsukiji, Chuo City, Tokyo',
-              lat: 35.6654,
-              lon: 139.7706,
-            },
-          ],
-        },
-        {
-          date: '2024-03-16',
-          blocks: [
-            {
-              start: '10:00',
-              end: '16:00',
-              title: 'Tokyo Disneyland',
-              category: 'other',
-              costBand: 'high',
-              notes: 'Full day at the magical theme park',
-              address: '1-1 Maihama, Urayasu, Chiba',
-              lat: 35.6329,
-              lon: 139.8804,
-            },
-          ],
-        },
-      ],
-      packingList: [
-        'Comfortable walking shoes',
-        'Light jacket for spring weather',
-        'Universal power adapter',
-        'Portable WiFi or SIM card',
-        'Travel guidebook',
-        'Camera or smartphone',
-      ],
-      rationalePerDay: [
-        'Day 1 focuses on traditional Tokyo culture with Senso-ji Temple and authentic local food at Tsukiji Market.',
-        'Day 2 is dedicated to entertainment and fun at Tokyo Disneyland, perfect for families or Disney enthusiasts.',
-      ],
-    });
-    setLoading(false);
-  };
-
-  const rateActivity = async (blockId: string, rating: 'up' | 'down') => {
-    try {
-      // TODO: Call GraphQL mutation to rate activity
-      console.log(`Rating activity ${blockId}: ${rating}`);
-      alert(`Activity rated ${rating}! (TODO: Implement actual rating)`);
-    } catch (error) {
-      console.error('Error rating activity:', error);
     }
   };
 
@@ -164,6 +87,19 @@ export default function ItineraryDetail() {
     return <div>Loading...</div>;
   }
 
+  if (error) {
+    return (
+      <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ padding: '1rem', backgroundColor: '#FEE2E2', borderRadius: '8px', color: '#DC2626' }}>
+          {error}
+        </div>
+        <Link href="/">
+          <button style={{ marginTop: '1rem' }}>← Back to Home</button>
+        </Link>
+      </div>
+    );
+  }
+
   if (!itinerary) {
     return <div>Itinerary not found</div>;
   }
@@ -171,8 +107,8 @@ export default function ItineraryDetail() {
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <Link href="/dashboard">
-          <button>← Back to Dashboard</button>
+        <Link href="/">
+          <button>← Back to Home</button>
         </Link>
       </div>
 
@@ -185,9 +121,11 @@ export default function ItineraryDetail() {
         {itinerary.days.map((day, dayIndex) => (
           <div key={day.date} style={{ border: '1px solid #ccc', padding: '1.5rem', borderRadius: '8px' }}>
             <h2>Day {dayIndex + 1} - {new Date(day.date).toLocaleDateString()}</h2>
-            <p style={{ color: '#666', marginBottom: '1rem' }}>
-              {itinerary.rationalePerDay[dayIndex]}
-            </p>
+            {itinerary.rationalePerDay?.[dayIndex] && (
+              <p style={{ color: '#666', marginBottom: '1rem' }}>
+                {itinerary.rationalePerDay[dayIndex]}
+              </p>
+            )}
             
             <div style={{ display: 'grid', gap: '1rem' }}>
               {day.blocks.map((block, blockIndex) => (
@@ -200,24 +138,10 @@ export default function ItineraryDetail() {
                     backgroundColor: '#f9f9f9',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                  <div style={{ marginBottom: '0.5rem' }}>
                     <h3 style={{ margin: 0 }}>
                       {getCategoryEmoji(block.category)} {block.title}
                     </h3>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        onClick={() => rateActivity(`${day.date}-${blockIndex}`, 'up')}
-                        style={{ background: 'none', border: 'none', fontSize: '1.2em' }}
-                      >
-                        👍
-                      </button>
-                      <button
-                        onClick={() => rateActivity(`${day.date}-${blockIndex}`, 'down')}
-                        style={{ background: 'none', border: 'none', fontSize: '1.2em' }}
-                      >
-                        👎
-                      </button>
-                    </div>
                   </div>
                   
                   <p style={{ margin: '0.5rem 0', color: '#666' }}>
