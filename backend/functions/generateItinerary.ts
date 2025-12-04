@@ -4,7 +4,7 @@ import { DynamoDBDocumentClient, PutCommand, GetCommand } from '@aws-sdk/lib-dyn
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
 const dynamoDB = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-const bedrock = new BedrockRuntimeClient({ region: 'us-east-1' });
+const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
@@ -18,6 +18,29 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     const body = JSON.parse(event.body || '{}');
+
+    // Input validation
+    if (!body.destination || typeof body.destination !== 'string') {
+      return {
+        statusCode: 400,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ error: 'Missing or invalid destination' }),
+      };
+    }
+    if (!body.duration || typeof body.duration !== 'number' || body.duration < 1 || body.duration > 14) {
+      return {
+        statusCode: 400,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ error: 'Duration must be a number between 1 and 14' }),
+      };
+    }
+    if (!body.startDate || typeof body.startDate !== 'string') {
+      return {
+        statusCode: 400,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ error: 'Missing or invalid start date' }),
+      };
+    }
 
     // Fetch user profile from DynamoDB
     const profileResult = await dynamoDB.send(

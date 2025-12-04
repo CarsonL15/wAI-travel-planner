@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { generateItinerary } from '../lib/api';
 import { isAuthenticated, getCurrentUser, signOut } from '../lib/auth';
+import { THEME, MAX_TRIP_DAYS } from '../lib/constants';
 
 export default function TripPlanner() {
   const router = useRouter();
@@ -10,7 +11,8 @@ export default function TripPlanner() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [tripName, setTripName] = useState('');
   const [loading, setLoading] = useState(false);
-  
+  const [error, setError] = useState<string | null>(null);
+
   // Essential trip details
   const [duration, setDuration] = useState(3);
   const [budget, setBudget] = useState('');
@@ -32,8 +34,8 @@ export default function TripPlanner() {
     try {
       const user = await getCurrentUser();
       setUserEmail(user.email);
-    } catch (error) {
-      console.error('Error getting user:', error);
+    } catch {
+      // User fetch failed, continue anyway
     }
   };
 
@@ -52,31 +54,25 @@ export default function TripPlanner() {
   };
 
   const generateTrip = async () => {
+    setError(null);
+
     if (!destinationInput.trim()) {
-      alert('Please enter a destination');
+      setError('Please enter a destination');
       return;
     }
 
     if (!budget) {
-      alert('Please select a budget');
+      setError('Please select a budget');
       return;
     }
 
     if (!startDate) {
-      alert('Please select a start date');
+      setError('Please select a start date');
       return;
     }
 
     setLoading(true);
     try {
-      console.log('Generating itinerary with data:', {
-        destination: destinationInput,
-        duration: duration,
-        budget: budget,
-        startDate: startDate,
-        interests: [],
-      });
-
       const result = await generateItinerary({
         destination: destinationInput,
         duration: duration,
@@ -85,17 +81,16 @@ export default function TripPlanner() {
         interests: [],
       });
 
-      console.log('Generated itinerary result:', result);
       router.push(`/itinerary/${result.id}`);
-    } catch (error: any) {
-      console.error('Full error generating itinerary:', error);
-      alert(`Failed to generate itinerary: ${error.message || 'Unknown error'}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to generate itinerary: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const durationPercent = Math.round(((duration - 1) / (14 - 1)) * 100);
+  const durationPercent = Math.round(((duration - 1) / (MAX_TRIP_DAYS - 1)) * 100);
 
   return (
     <div 
@@ -333,6 +328,23 @@ export default function TripPlanner() {
               </div>
             </div>
           </div>
+
+          {/* Error Display */}
+          {error && (
+            <div
+              style={{
+                marginTop: '1rem',
+                padding: '0.75rem 1rem',
+                backgroundColor: '#FEE2E2',
+                border: '1px solid #FECACA',
+                borderRadius: '0.5rem',
+                color: '#DC2626',
+                fontSize: '0.875rem',
+              }}
+            >
+              {error}
+            </div>
+          )}
 
           {/* Generate Button */}
           <button
