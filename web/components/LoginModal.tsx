@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { signIn } from '../lib/auth';
-import { THEME } from '../lib/constants';
+import { DESIGN } from '../lib/constants';
 
 interface LoginModalProps {
   onClose: () => void;
@@ -39,29 +39,41 @@ export default function LoginModal({ onClose, onSwitchToSignup, onSuccess }: Log
   };
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 100,
-      }}
-    >
+    <>
+      {/* Backdrop */}
       <div
+        onClick={handleClose}
+        className="animate-fade-in"
         style={{
-          pointerEvents: 'auto',
-          backgroundColor: 'white',
-          borderRadius: '24px',
-          padding: '3rem',
-          maxWidth: '600px',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 999,
+        }}
+      />
+
+      {/* Modal */}
+      <div
+        className="animate-scale-in"
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 1000,
+          backgroundColor: DESIGN.colors.bgCard,
+          borderRadius: DESIGN.radius.xl,
+          padding: '2.5rem',
+          maxWidth: '420px',
           width: '90vw',
-          maxHeight: '85vh',
-          overflowY: 'auto',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.4)',
-          position: 'relative',
+          boxShadow: DESIGN.shadows.xl,
         }}
       >
+        {/* Close Button */}
         <button
           onClick={handleClose}
           style={{
@@ -70,80 +82,173 @@ export default function LoginModal({ onClose, onSwitchToSignup, onSuccess }: Log
             right: '1rem',
             background: 'transparent',
             border: 'none',
-            fontSize: '2rem',
+            fontSize: '1.5rem',
             cursor: 'pointer',
-            color: '#9ca3af',
+            color: DESIGN.colors.textMuted,
             padding: '0.5rem',
             lineHeight: 1,
+            transition: `color ${DESIGN.transitions.fast}`,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = DESIGN.colors.textPrimary;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = DESIGN.colors.textMuted;
           }}
         >
           ×
         </button>
 
-        <div style={{ textAlign: 'center' }}>
-          <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem', color: '#1f2937', fontWeight: '700' }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <h2
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.75rem',
+              fontWeight: 400,
+              color: DESIGN.colors.textPrimary,
+              marginBottom: '0.5rem',
+            }}
+          >
             Welcome Back
           </h2>
-          <p style={{ color: '#6b7280', marginBottom: '2rem', fontSize: '1rem' }}>
-            Sign in to your account
+          <p style={{ color: DESIGN.colors.textSecondary, fontSize: '0.9375rem' }}>
+            Sign in to continue planning
           </p>
         </div>
 
+        {/* Form */}
         <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.75rem 1rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '1rem',
-            }}
-            required
-          />
+          <div>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                color: DESIGN.colors.textSecondary,
+                marginBottom: '0.5rem',
+              }}
+            >
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                border: `1px solid ${DESIGN.colors.border}`,
+                borderRadius: DESIGN.radius.md,
+                fontSize: '1rem',
+                color: DESIGN.colors.textPrimary,
+                backgroundColor: DESIGN.colors.bgCard,
+                transition: `all ${DESIGN.transitions.fast}`,
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = DESIGN.colors.accent;
+                e.currentTarget.style.boxShadow = DESIGN.shadows.glow;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = DESIGN.colors.border;
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              required
+            />
+          </div>
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.75rem 1rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '1rem',
-            }}
-            required
-            minLength={8}
-          />
+          <div>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                color: DESIGN.colors.textSecondary,
+                marginBottom: '0.5rem',
+              }}
+            >
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                border: `1px solid ${DESIGN.colors.border}`,
+                borderRadius: DESIGN.radius.md,
+                fontSize: '1rem',
+                color: DESIGN.colors.textPrimary,
+                backgroundColor: DESIGN.colors.bgCard,
+                transition: `all ${DESIGN.transitions.fast}`,
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = DESIGN.colors.accent;
+                e.currentTarget.style.boxShadow = DESIGN.shadows.glow;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = DESIGN.colors.border;
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              required
+              minLength={8}
+            />
+          </div>
 
-          {error && <p style={{ color: '#ef4444', fontSize: '0.875rem' }}>{error}</p>}
+          {error && (
+            <p
+              style={{
+                color: DESIGN.colors.error,
+                fontSize: '0.875rem',
+                padding: '0.75rem',
+                backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                borderRadius: DESIGN.radius.md,
+                margin: 0,
+              }}
+            >
+              {error}
+            </p>
+          )}
 
           <button
             type="submit"
             disabled={loading}
             style={{
               width: '100%',
-              background: THEME.gradient,
+              background: DESIGN.gradients.primary,
               color: 'white',
-              padding: '0.75rem',
-              borderRadius: '8px',
+              padding: '0.875rem',
+              borderRadius: DESIGN.radius.md,
               border: 'none',
               fontSize: '1rem',
-              fontWeight: '600',
+              fontWeight: 600,
               cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.5 : 1,
+              opacity: loading ? 0.7 : 1,
+              transition: `all ${DESIGN.transitions.normal}`,
+              boxShadow: DESIGN.shadows.md,
+              marginTop: '0.5rem',
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = DESIGN.shadows.lg;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = DESIGN.shadows.md;
             }}
           >
             {loading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+        {/* Footer */}
+        <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+          <span style={{ color: DESIGN.colors.textMuted, fontSize: '0.875rem' }}>
+            Don't have an account?{' '}
+          </span>
           <button
             onClick={() => {
               onClose();
@@ -152,16 +257,23 @@ export default function LoginModal({ onClose, onSwitchToSignup, onSuccess }: Log
             style={{
               background: 'transparent',
               border: 'none',
-              color: THEME.primaryColor,
+              color: DESIGN.colors.primary,
               fontSize: '0.875rem',
-              fontWeight: '500',
+              fontWeight: 500,
               cursor: 'pointer',
+              transition: `color ${DESIGN.transitions.fast}`,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = DESIGN.colors.primaryLight;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = DESIGN.colors.primary;
             }}
           >
-            Don't have an account? Sign Up
+            Sign Up
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }

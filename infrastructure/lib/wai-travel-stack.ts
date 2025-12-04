@@ -51,7 +51,6 @@ export class WaiTravelStack extends cdk.Stack {
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       timeout: cdk.Duration.minutes(5),
-      reservedConcurrentExecutions: 10, // Cost protection
       environment: {
         TABLE_NAME: table.tableName,
       },
@@ -90,11 +89,12 @@ export class WaiTravelStack extends cdk.Stack {
     table.grantReadData(getUserFn);
     table.grantReadWriteData(saveUserPreferencesFn);
 
-    // Bedrock access - restricted to specific model
+    // Bedrock access - allow both Haiku (fast) and Sonnet (detailed)
     generateItineraryFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['bedrock:InvokeModel'],
         resources: [
+          'arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0',
           'arn:aws:bedrock:*::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0',
         ],
       })
@@ -108,6 +108,36 @@ export class WaiTravelStack extends cdk.Stack {
         allowOrigins: ['*'], // In production, replace with your domain
         allowMethods: ['GET', 'POST', 'OPTIONS'],
         allowHeaders: ['Content-Type', 'Authorization'],
+      },
+    });
+
+    // Add CORS headers to ALL gateway responses (errors, timeouts, auth failures)
+    // This is critical - without this, browser blocks error responses due to missing CORS headers
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': "'*'",
+      'Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+      'Access-Control-Allow-Methods': "'GET,POST,OPTIONS'",
+    };
+
+    // Add CORS to default 4XX responses (auth errors, bad requests, etc.)
+    api.addGatewayResponse('Default4XX', {
+      type: apigateway.ResponseType.DEFAULT_4XX,
+      responseHeaders: corsHeaders,
+    });
+
+    // Add CORS to default 5XX responses (Lambda errors, timeouts, etc.)
+    api.addGatewayResponse('Default5XX', {
+      type: apigateway.ResponseType.DEFAULT_5XX,
+      responseHeaders: corsHeaders,
+    });
+
+    // Add CORS specifically to timeout responses
+    api.addGatewayResponse('IntegrationTimeout', {
+      type: apigateway.ResponseType.INTEGRATION_TIMEOUT,
+      responseHeaders: corsHeaders,
+      statusCode: '504',
+      templates: {
+        'application/json': '{"error": "Request timed out. AI generation is taking longer than expected. Please try again."}',
       },
     });
 
@@ -145,7 +175,6 @@ export class WaiTravelStack extends cdk.Stack {
         restrictPublicBuckets: false,
       }),
       removalPolicy: cdk.RemovalPolicy.RETAIN,
-      autoDeleteObjects: false,
     });
 
     // Deploy Next.js static export

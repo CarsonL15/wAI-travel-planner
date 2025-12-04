@@ -61,59 +61,38 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const pace = body.pace || userProfile?.pace || 'moderate';
     const budget = body.budget || (travelStyle === 'luxury' ? 'high' : travelStyle === 'budget' ? 'low' : 'medium');
 
-    // Build enhanced prompt with user preferences
+    // Build concise prompt for faster generation
     const interestList = Array.isArray(interests) ? interests.join(', ') : interests;
-    
-    const prompt = `Generate a ${body.duration}-day travel itinerary for ${body.destination}.
 
-User profile and preferences:
-- Travel interests: ${interestList || 'general sightseeing'}
-- Travel style: ${travelStyle} (luxury, budget-friendly, balanced, or backpacker)
-- Preferred pace: ${pace} (relaxed, moderate, or fast-paced)
-- Budget level: ${budget}
-- Start date: ${body.startDate || 'flexible'}
+    // Calculate dates
+    const startDateObj = new Date(body.startDate);
+    const endDateObj = new Date(startDateObj);
+    endDateObj.setDate(endDateObj.getDate() + body.duration - 1);
+    const endDateStr = endDateObj.toISOString().split('T')[0];
 
-IMPORTANT: Tailor the itinerary to match the user's interests and travel style. For example:
-- If interested in "hiking", prioritize outdoor activities and nature spots
-- If interested in "nightlife", include evening entertainment and bars
-- If travel style is "luxury", suggest high-end hotels and fine dining
-- If travel style is "budget", focus on affordable hostels and local eateries
-- If pace is "relaxed", include plenty of downtime and fewer activities per day
-- If pace is "fast-paced", pack the schedule with multiple activities
-
-Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
-{
-  "destination": "${body.destination}",
-  "startDate": "YYYY-MM-DD",
-  "endDate": "YYYY-MM-DD",
-  "days": [
-    {
-      "date": "YYYY-MM-DD",
-      "blocks": [
-        {
-          "id": "unique-id",
-          "start": "09:00",
-          "end": "11:00",
-          "title": "Activity name",
-          "category": "food",
-          "costBand": "med",
-          "notes": "Why visit",
-          "address": "Full address"
-        }
-      ]
+    // Generate date strings for each day
+    const dayDates = [];
+    for (let i = 0; i < body.duration; i++) {
+      const d = new Date(startDateObj);
+      d.setDate(d.getDate() + i);
+      dayDates.push(d.toISOString().split('T')[0]);
     }
-  ],
-  "packingList": ["item1", "item2"],
-  "rationalePerDay": ["Day 1: Reason", "Day 2: Reason"]
-}`;
+
+    const prompt = `Create a ${body.duration}-day itinerary for ${body.destination}. Style: ${travelStyle}, pace: ${pace}, interests: ${interestList || 'sightseeing'}.
+
+Return ONLY this JSON (3-4 activities per day):
+{"destination":"${body.destination}","startDate":"${body.startDate}","endDate":"${endDateStr}","days":[${dayDates.map((date, i) => `{"date":"${date}","blocks":[{"id":"d${i + 1}a1","start":"09:00","end":"11:00","title":"Morning activity","category":"sightseeing","costBand":"med","notes":"Brief note","address":"Address"},{"id":"d${i + 1}a2","start":"12:00","end":"13:30","title":"Lunch","category":"food","costBand":"med","notes":"Brief note","address":"Address"},{"id":"d${i + 1}a3","start":"14:30","end":"17:00","title":"Afternoon activity","category":"culture","costBand":"med","notes":"Brief note","address":"Address"}]}`).join(',')}],"packingList":["item1","item2","item3"],"rationalePerDay":[${dayDates.map((_, i) => `"Day ${i + 1} focus"`).join(',')}]}
+
+Replace placeholders with real ${body.destination} attractions, restaurants, and activities. Categories: food, museum, outdoors, shopping, other. CostBand: low, med, high.`;
 
     const response = await bedrock.send(
       new InvokeModelCommand({
-        modelId: 'anthropic.claude-3-sonnet-20240229-v1:0',
+        // Haiku is much faster (3-8 sec vs 20-40 sec for Sonnet)
+        modelId: 'anthropic.claude-3-haiku-20240307-v1:0',
         contentType: 'application/json',
         body: JSON.stringify({
           anthropic_version: 'bedrock-2023-05-31',
-          max_tokens: 4096,
+          max_tokens: 2048,
           temperature: 0.7,
           messages: [{ role: 'user', content: prompt }],
         }),

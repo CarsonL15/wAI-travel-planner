@@ -139,6 +139,39 @@ export function getIdToken(): string | null {
   return localStorage.getItem('idToken');
 }
 
+/**
+ * Get a fresh, valid ID token. This will refresh the token if needed.
+ * Use this instead of getIdToken() for API calls.
+ */
+export async function getFreshIdToken(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const cognitoUser = userPool.getCurrentUser();
+
+    if (!cognitoUser) {
+      reject(new Error('No user logged in'));
+      return;
+    }
+
+    // getSession automatically refreshes expired tokens
+    cognitoUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      if (!session || !session.isValid()) {
+        reject(new Error('Session invalid or expired'));
+        return;
+      }
+
+      const token = session.getIdToken().getJwtToken();
+      // Update localStorage with fresh token
+      localStorage.setItem('idToken', token);
+      resolve(token);
+    });
+  });
+}
+
 export async function isAuthenticated(): Promise<boolean> {
   try {
     await getCurrentUser();
